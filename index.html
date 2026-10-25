@@ -1,44 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0B1026" />
+  <meta name="theme-color" content="#1b1464" />
   <meta name="color-scheme" content="dark" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="AR Portals" />
-  <meta name="application-name" content="AR Portals" />
+  <meta name="apple-mobile-web-app-title" content="Twilight Portal" />
+  <meta name="application-name" content="Twilight Portal" />
 
-  <!-- PWA & Mobile Web App Meta Tags -->
+  <!-- PWA Metadata -->
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 
-  <title>AR Portal Experience — Bioluminescent Twilight</title>
-
-  <!-- Pinned Three.js from cdnjs -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <title>Twilight Portal — Immersive WebXR AR Experience</title>
 
   <style>
-    /* ══════════════════════════════════════════════════════════════════════════
-       DESIGN SYSTEM: BIOLUMINESCENT TWILIGHT
-       Palette:
-         Deep Night:       #0B1026
-         Midnight Violet:  #2B1B5A
-         Aurora Teal:      #2EF2D0
-         Soft Magenta:     #FF5CC8
-         Warm Gold:        #FFD98A
-         Mist White:       #EAF6FF
-    ══════════════════════════════════════════════════════════════════════════ */
     :root {
-      --c-deep-night: #0B1026;
-      --c-midnight-violet: #2B1B5A;
-      --c-aurora-teal: #2EF2D0;
-      --c-soft-magenta: #FF5CC8;
-      --c-warm-gold: #FFD98A;
-      --c-mist-white: #EAF6FF;
+      --c-indigo: #1b1464;
+      --c-violet: #6d28d9;
+      --c-teal: #14f1d9;
+      --c-magenta: #ff3cac;
+      --c-white: #e8f7ff;
+      --glass-bg: rgba(27, 20, 100, 0.48);
+      --glass-border: rgba(20, 241, 217, 0.28);
+      --glass-glow: rgba(20, 241, 217, 0.18);
       --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     }
 
@@ -51,88 +41,136 @@
       -webkit-user-select: none;
     }
 
-    html, body {
+    html,
+    body {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background-color: var(--c-deep-night);
+      background-color: #050014;
       font-family: var(--font-stack);
-      color: var(--c-mist-white);
+      color: var(--c-white);
     }
 
+    /* WebGL Viewport & Rear Camera Feed */
     #webgl-canvas {
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100vw;
       height: 100vh;
       display: block;
-      z-index: 1;
+      z-index: 2;
     }
 
-    /* ─── UI Overlay ─── */
-    #ui-container {
+    #camera-video {
       position: fixed;
       inset: 0;
-      z-index: 10;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 1;
+      display: none;
+    }
+
+    /* Screen Overlays */
+    #screen-flash {
+      position: fixed;
+      inset: 0;
+      background: white;
+      opacity: 0;
       pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
-               max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      z-index: 90;
+      transition: opacity 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
     }
 
-    .interactive {
-      pointer-events: auto;
+    #screen-flash.flash-active {
+      opacity: 0.95;
+      transition: none;
     }
 
-    /* ─── Glassmorphism Button System ─── */
+    #vignette-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      background: radial-gradient(circle at center, transparent 45%, rgba(11, 6, 40, 0.75) 100%);
+      transition: transform 0.6s ease, opacity 0.6s ease;
+    }
+
+    #vignette-overlay.vignette-pulse {
+      transform: scale(1.08);
+      opacity: 0.9;
+    }
+
+    .letterbox {
+      position: fixed;
+      left: 0;
+      right: 0;
+      height: 0;
+      background: #000;
+      z-index: 85;
+      pointer-events: none;
+      transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #letterbox-top {
+      top: 0;
+    }
+
+    #letterbox-bottom {
+      bottom: 0;
+    }
+
+    .letterbox.active {
+      height: max(24px, env(safe-area-inset-top));
+    }
+
+    /* ─── Glassmorphism Buttons & Components ─── */
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 0 12px var(--glass-glow);
+    }
+
     .glass-btn {
       min-height: 48px;
-      min-width: 48px;
-      padding: 12px 22px;
+      padding: 12px 24px;
       border-radius: 16px;
-      background: rgba(43, 27, 90, 0.45);
-      border: 1px solid rgba(234, 246, 255, 0.22);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      color: var(--c-mist-white);
-      font-family: var(--font-stack);
+      background: rgba(43, 27, 110, 0.6);
+      border: 1px solid rgba(20, 241, 217, 0.35);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: var(--c-white);
       font-size: 15px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      cursor: pointer;
-      box-shadow: 0 8px 32px 0 rgba(11, 16, 38, 0.5), inset 0 0 12px rgba(46, 242, 208, 0.12);
-      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition: all 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
     }
 
     .glass-btn:hover {
-      background: rgba(43, 27, 90, 0.7);
-      border-color: var(--c-aurora-teal);
-      box-shadow: 0 0 20px rgba(46, 242, 208, 0.4);
+      background: rgba(109, 40, 217, 0.7);
+      border-color: var(--c-teal);
+      box-shadow: 0 0 25px rgba(20, 241, 217, 0.45);
       transform: translateY(-2px);
     }
 
     .glass-btn:active {
-      transform: translateY(1px) scale(0.97);
+      transform: scale(0.96);
     }
 
     .glass-btn.primary {
-      background: linear-gradient(135deg, rgba(46, 242, 208, 0.35), rgba(255, 92, 200, 0.35));
-      border-color: var(--c-aurora-teal);
-      color: #FFFFFF;
-      text-shadow: 0 0 8px rgba(46, 242, 208, 0.6);
-      box-shadow: 0 8px 28px rgba(46, 242, 208, 0.3), inset 0 0 16px rgba(255, 255, 255, 0.2);
-    }
-
-    .glass-btn.primary:hover {
-      background: linear-gradient(135deg, rgba(46, 242, 208, 0.55), rgba(255, 92, 200, 0.55));
-      box-shadow: 0 0 30px rgba(46, 242, 208, 0.6);
+      background: linear-gradient(135deg, rgba(20, 241, 217, 0.35), rgba(255, 60, 172, 0.45));
+      border: 1px solid rgba(20, 241, 217, 0.65);
+      box-shadow: 0 0 30px rgba(20, 241, 217, 0.35);
+      font-weight: 600;
     }
 
     .icon-btn {
@@ -142,94 +180,75 @@
       border-radius: 50%;
     }
 
-    /* ─── Launch Screen ─── */
-    #launch-screen {
+    /* ─── Splash Launch Console ─── */
+    #splash-screen {
       position: fixed;
       inset: 0;
-      z-index: 100;
+      z-index: 50;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 32px 24px;
-      background: radial-gradient(circle at 50% 30%, #2B1B5A 0%, #0B1026 80%);
-      transition: opacity 0.8s ease, visibility 0.8s ease;
+      padding: 24px;
+      background: radial-gradient(circle at center, #1b1464 0%, #050014 85%);
+      transition: opacity 0.5s ease, transform 0.5s ease;
     }
 
-    #launch-screen.hidden {
+    #splash-screen.fade-out {
       opacity: 0;
-      visibility: hidden;
+      transform: scale(1.05);
       pointer-events: none;
     }
 
-    .launch-portal-icon {
-      width: 86px;
-      height: 132px;
-      border-radius: 46px 46px 10px 10px;
-      border: 3px solid var(--c-aurora-teal);
-      box-shadow: 0 0 35px var(--c-aurora-teal), inset 0 0 25px var(--c-soft-magenta);
-      margin-bottom: 24px;
-      position: relative;
-      animation: pulsePortal 3.2s ease-in-out infinite alternate;
-    }
-
-    .launch-portal-icon::after {
-      content: "";
-      position: absolute;
-      inset: 12px;
-      border-radius: 36px 36px 6px 6px;
-      background: linear-gradient(180deg, rgba(46, 242, 208, 0.3), rgba(255, 92, 200, 0.4));
-      filter: blur(4px);
-    }
-
-    @keyframes pulsePortal {
-      0% {
-        transform: scale(0.96);
-        box-shadow: 0 0 25px rgba(46, 242, 208, 0.6), inset 0 0 15px rgba(255, 92, 200, 0.4);
-      }
-      100% {
-        transform: scale(1.04);
-        box-shadow: 0 0 45px rgba(46, 242, 208, 0.9), inset 0 0 35px rgba(255, 92, 200, 0.7);
-      }
-    }
-
-    .launch-title {
-      font-size: 27px;
-      font-weight: 300;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
+    .splash-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 420px;
       text-align: center;
-      color: var(--c-mist-white);
-      margin-bottom: 6px;
     }
 
-    .launch-subtitle {
+    .splash-subtitle {
       font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.22em;
-      color: var(--c-aurora-teal);
+      letter-spacing: 0.28em;
       text-transform: uppercase;
-      margin-bottom: 20px;
-      text-align: center;
+      color: var(--c-teal);
+      margin-top: 14px;
+      margin-bottom: 22px;
+      font-weight: 600;
     }
 
-    .launch-instructions {
-      max-width: 320px;
-      text-align: center;
-      font-size: 14px;
-      line-height: 1.55;
-      color: rgba(234, 246, 255, 0.78);
-      margin-bottom: 30px;
+    .splash-desc {
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: rgba(232, 247, 255, 0.8);
+      margin-bottom: 34px;
+      max-width: 340px;
     }
 
-    .launch-instructions span {
-      display: block;
-      margin-top: 6px;
-      color: var(--c-warm-gold);
-      font-size: 12.5px;
+    .splash-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
     }
 
-    /* ─── In-Experience HUD ─── */
+    /* ─── In-Experience WebXR DOM Overlay HUD ─── */
+    #ui-container {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
     #hud-top {
       display: flex;
       justify-content: space-between;
@@ -239,32 +258,76 @@
 
     .status-badge {
       padding: 8px 16px;
-      border-radius: 20px;
-      background: rgba(11, 16, 38, 0.65);
-      border: 1px solid rgba(46, 242, 208, 0.35);
+      border-radius: 24px;
+      background: rgba(27, 20, 100, 0.65);
+      border: 1px solid rgba(20, 241, 217, 0.35);
       backdrop-filter: blur(10px);
       font-size: 13px;
-      letter-spacing: 0.05em;
-      color: var(--c-mist-white);
+      letter-spacing: 0.04em;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .status-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background-color: var(--c-aurora-teal);
-      box-shadow: 0 0 10px var(--c-aurora-teal);
-      animation: blink 2s infinite ease-in-out;
+      background: var(--c-teal);
+      box-shadow: 0 0 8px var(--c-teal);
+      animation: pulseDot 2s infinite ease-in-out;
     }
 
-    @keyframes blink {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 1; }
+    @keyframes pulseDot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.8);
+      }
     }
 
+    .top-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Floating Scale Slider */
+    #scale-slider-container {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 15;
+    }
+
+    .vertical-slider {
+      writing-mode: bt-lr;
+      /* IE/Edge */
+      -webkit-appearance: slider-vertical;
+      width: 24px;
+      height: 140px;
+      accent-color: var(--c-teal);
+    }
+
+    .slider-label {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      color: var(--c-teal);
+      text-transform: uppercase;
+    }
+
+    /* Bottom HUD */
     #hud-bottom {
       display: flex;
       flex-direction: column;
@@ -273,48 +336,182 @@
       width: 100%;
     }
 
+    #coach-pill {
+      padding: 10px 22px;
+      border-radius: 20px;
+      background: rgba(11, 6, 35, 0.75);
+      border: 1px solid rgba(255, 60, 172, 0.4);
+      backdrop-filter: blur(12px);
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      color: var(--c-white);
+      text-align: center;
+      box-shadow: 0 0 20px rgba(255, 60, 172, 0.25);
+    }
+
     .action-bar {
       display: flex;
       gap: 12px;
-      justify-content: center;
       flex-wrap: wrap;
+      justify-content: center;
     }
 
-    #coach-pill {
-      background: rgba(11, 16, 38, 0.8);
-      border: 1px solid rgba(255, 217, 138, 0.4);
-      padding: 10px 20px;
-      border-radius: 24px;
+    /* ─── Slide-Up Effects Modal Drawer ─── */
+    #effects-modal {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 85vh;
+      overflow-y: auto;
+      z-index: 60;
+      border-radius: 28px 28px 0 0;
+      padding: 24px 20px max(24px, env(safe-area-inset-bottom));
+      transform: translateY(0);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #effects-modal.hidden {
+      transform: translateY(105%);
+      pointer-events: none;
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(20, 241, 217, 0.2);
+    }
+
+    .drawer-title {
+      font-size: 17px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-teal);
+    }
+
+    .drawer-section {
+      margin-bottom: 22px;
+    }
+
+    .section-label {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: rgba(232, 247, 255, 0.65);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .custom-select,
+    .range-slider {
+      background: rgba(11, 6, 40, 0.7);
+      border: 1px solid var(--glass-border);
+      color: var(--c-white);
+      border-radius: 12px;
+      padding: 8px 14px;
       font-size: 14px;
-      color: var(--c-warm-gold);
-      backdrop-filter: blur(12px);
-      letter-spacing: 0.03em;
-      text-align: center;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      transition: opacity 0.3s ease, transform 0.3s ease;
     }
 
-    /* ─── Styled Toast Component ─── */
+    .range-slider {
+      width: 140px;
+      accent-color: var(--c-teal);
+    }
+
+    .theme-picker {
+      display: flex;
+      gap: 10px;
+    }
+
+    .theme-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(27, 20, 100, 0.5);
+      color: var(--c-white);
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .theme-btn.active {
+      border-color: var(--c-teal);
+      background: rgba(20, 241, 217, 0.2);
+      box-shadow: 0 0 15px rgba(20, 241, 217, 0.4);
+    }
+
+    /* Toggle switches */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch-slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 24px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+
+    input:checked+.switch-slider {
+      background: var(--c-teal);
+    }
+
+    input:checked+.switch-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Toast Notification */
     #toast {
       position: fixed;
-      top: 24px;
+      top: max(24px, env(safe-area-inset-top));
       left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      background: rgba(43, 27, 90, 0.9);
-      border: 1px solid var(--c-aurora-teal);
-      color: var(--c-mist-white);
-      padding: 12px 24px;
+      transform: translateX(-50%) translateY(-30px);
+      padding: 10px 24px;
       border-radius: 20px;
+      background: rgba(27, 20, 100, 0.9);
+      border: 1px solid var(--c-teal);
+      backdrop-filter: blur(14px);
+      color: var(--c-white);
       font-size: 14px;
-      letter-spacing: 0.03em;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(46, 242, 208, 0.3);
-      backdrop-filter: blur(16px);
-      z-index: 200;
+      letter-spacing: 0.05em;
+      z-index: 99;
       opacity: 0;
       pointer-events: none;
-      transition: transform 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease;
-      max-width: 90vw;
-      text-align: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 25px rgba(20, 241, 217, 0.35);
     }
 
     #toast.show {
@@ -322,93 +519,113 @@
       opacity: 1;
     }
 
-    /* ─── Screen Transition Flash ─── */
-    #portal-flash {
-      position: fixed;
-      inset: 0;
-      z-index: 50;
-      background: radial-gradient(circle, #FFFFFF 0%, var(--c-aurora-teal) 70%, transparent 100%);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.32s ease-out;
-    }
-
-    #portal-flash.flash {
-      opacity: 0.85;
-      transition: none;
-    }
-
     .hidden {
       display: none !important;
     }
   </style>
 </head>
+
 <body>
-
-  <!-- WebGL Render Surface -->
+  <!-- Canvas & Camera Video Elements -->
   <canvas id="webgl-canvas"></canvas>
+  <video id="camera-video" playsinline webkit-playsinline muted></video>
 
-  <!-- Portal Crossing Flash Overlay -->
-  <div id="portal-flash"></div>
+  <!-- Cinema & FX Overlays -->
+  <div id="screen-flash"></div>
+  <div id="vignette-overlay"></div>
+  <div id="letterbox-top" class="letterbox"></div>
+  <div id="letterbox-bottom" class="letterbox"></div>
+  <div id="toast" class="hidden"></div>
 
-  <!-- Styled Toast Notification -->
-  <div id="toast" role="alert" aria-live="assertive">Notification</div>
+  <!-- 1. Launch & Splash Screen -->
+  <div id="splash-screen">
+    <div class="splash-content">
+      <canvas id="splash-canvas"></canvas>
+      <div class="splash-subtitle">Bioluminescent Realm • WebXR Portal</div>
+      <p class="splash-desc">
+        Open an interdimensional doorway into a calm, glowing twilight world in your room.
+        Walk right through to explore.
+      </p>
 
-  <!-- Launch Screen -->
-  <div id="launch-screen">
-    <div class="launch-portal-icon" aria-hidden="true"></div>
-    <h1 class="launch-title">Twilight Portal</h1>
-    <div class="launch-subtitle">Bioluminescent Gateway</div>
-    <p class="launch-instructions">
-      Scan your floor to find a stable surface, then tap to summon an organic glowing gateway to an ethereal twilight realm.
-      <span>Walk through the portal to explore. Best experienced with sound on.</span>
-    </p>
-
-    <div style="display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 290px;">
-      <button id="btn-enter-ar" class="glass-btn primary" style="width: 100%;">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-        </svg>
-        Enter AR Experience
-      </button>
-
-      <button id="btn-fallback-preview" class="glass-btn" style="width: 100%; font-size: 13.5px; opacity: 0.9;">
-        Explore 3D Preview Mode
-      </button>
-
-      <!-- Install App Button (Visible when PWA install criteria are met) -->
-      <button id="btn-install-app" class="glass-btn hidden" style="width: 100%; font-size: 13.5px; border-color: var(--c-warm-gold); color: var(--c-warm-gold);">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        Install App on Device
-      </button>
+      <div class="splash-actions">
+        <button id="btn-enter-ar" class="glass-btn primary hidden">
+          ✦ Enter AR (ARCore)
+        </button>
+        <button id="btn-camera-mode" class="glass-btn primary hidden">
+          📷 Open Camera Mode (iOS / Web)
+        </button>
+        <button id="btn-preview" class="glass-btn">
+          🌐 3D Desktop Preview
+        </button>
+        <button id="btn-install-app" class="glass-btn hidden">
+          📲 Install Twilight Portal App
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- In-Experience HUD Overlay -->
+  <!-- 2. WebXR DOM Overlay UI Container -->
   <div id="ui-container" class="hidden">
     <!-- Top HUD Row -->
     <div id="hud-top">
       <div class="status-badge">
-        <div class="status-dot"></div>
-        <span id="realm-label">Real World</span>
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status-text">Scanning...</span>
+        <span style="opacity: 0.4;">|</span>
+        <span id="fps-counter">60 FPS</span>
       </div>
 
-      <button id="btn-sound-toggle" class="glass-btn icon-btn interactive" aria-label="Toggle Sound" title="Sound">
-        <svg id="icon-sound-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-        </svg>
-        <svg id="icon-sound-off" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <line x1="23" y1="9" x2="17" y2="15"></line>
-          <line x1="17" y1="9" x2="23" y2="15"></line>
-        </svg>
-      </button>
+      <div class="top-actions interactive">
+        <button id="btn-sound-toggle" class="glass-btn icon-btn" title="Toggle Spatial Audio">
+          <svg id="icon-sound-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <svg id="icon-sound-off" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+
+        <button id="btn-screenshot" class="glass-btn icon-btn" title="Capture Screenshot">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </button>
+
+        <button id="btn-effects-panel" class="glass-btn icon-btn" title="Effects & Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="21" x2="4" y2="14"></line>
+            <line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line>
+            <line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line>
+            <line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+        </button>
+
+        <button id="btn-exit-ar" class="glass-btn icon-btn" title="Exit">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scale Slider Floating Widget -->
+    <div id="scale-slider-container" class="glass-panel interactive hidden">
+      <span class="slider-label">Scale</span>
+      <input type="range" id="portal-scale-slider" class="vertical-slider" min="0.4" max="2.4" step="0.05"
+        value="1.0" />
     </div>
 
     <!-- Bottom HUD Row -->
@@ -416,54 +633,97 @@
       <div id="coach-pill">Point your camera at the floor to find a surface</div>
 
       <div class="action-bar interactive">
-        <button id="btn-place-fallback" class="glass-btn primary hidden" style="font-size: 14px;">
+        <button id="btn-place-fallback" class="glass-btn primary hidden">
           ✦ Place Portal Here
         </button>
-        <button id="btn-step-fallback" class="glass-btn hidden" style="font-size: 14px;">
+        <button id="btn-step-fallback" class="glass-btn hidden">
           ⚡ Step Through
         </button>
-        <button id="btn-reset-portal" class="glass-btn" style="font-size: 14px;">
-          ↺ Reset Portal
-        </button>
-        <button id="btn-exit-ar" class="glass-btn" style="font-size: 14px;">
-          ✕ Exit
+        <button id="btn-reset-portal" class="glass-btn hidden">
+          ↺ Re-place Portal
         </button>
       </div>
     </div>
   </div>
 
+  <!-- 3. Slide-Up Effects & Environment Modal Drawer -->
+  <div id="effects-modal" class="glass-panel interactive hidden">
+    <div class="drawer-header">
+      <div class="drawer-title">✨ Visual Effects & Realm Settings</div>
+      <button id="btn-close-effects" class="glass-btn icon-btn" style="width:36px;height:36px;">✕</button>
+    </div>
+
+    <div class="drawer-section">
+      <button id="btn-cinematic-mode" class="glass-btn primary" style="width: 100%;">
+        🌟 Cinematic Mode (All Effects + High Quality)
+      </button>
+    </div>
+
+    <div class="drawer-section">
+      <div class="setting-row">
+        <span class="section-label">Performance Quality</span>
+        <select id="quality-select" class="custom-select">
+          <option value="high" selected>High (Ultra VFX)</option>
+          <option value="medium">Medium (Balanced)</option>
+          <option value="low">Low (Max FPS)</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <span class="section-label">Master VFX Intensity</span>
+        <input type="range" id="intensity-slider" class="range-slider" min="0.2" max="1.8" step="0.05" value="1.0" />
+      </div>
+
+      <div class="setting-row">
+        <span class="section-label">Time of Day</span>
+        <input type="range" id="time-slider" class="range-slider" min="0" max="1" step="0.02" value="0.5" />
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <span class="section-label">Color Theme Preset</span>
+      <div class="theme-picker">
+        <div class="theme-btn active" data-theme="twilight">Twilight</div>
+        <div class="theme-btn" data-theme="ember">Ember</div>
+        <div class="theme-btn" data-theme="frost">Frost</div>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <span class="section-label">Effect Subsystem Toggles</span>
+      <div class="setting-row">
+        <span>Group A: Portal Core (Vortex, Ring, Runes)</span>
+        <label class="switch"><input type="checkbox" id="toggle-core" checked><span
+            class="switch-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <span>Group B: Particles (Spores, Fireflies, Embers)</span>
+        <label class="switch"><input type="checkbox" id="toggle-particles" checked><span
+            class="switch-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <span>Group C: Light & Atmosphere (God Rays, Fog)</span>
+        <label class="switch"><input type="checkbox" id="toggle-lighting" checked><span
+            class="switch-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <span>Group D: Twilight World (Flora, Aurora, Sky)</span>
+        <label class="switch"><input type="checkbox" id="toggle-twilight" checked><span
+            class="switch-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <span>Group E: Reactive (Audio & Proximity)</span>
+        <label class="switch"><input type="checkbox" id="toggle-reactive" checked><span
+            class="switch-slider"></span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modular App Entry Script -->
+  <script type="module" src="/src/main.js"></script>
+
+  <!-- Service Worker registration for PWA -->
   <script>
-    /* ══════════════════════════════════════════════════════════════════════════
-       SERVICE WORKER & PWA INSTALL PROMPT
-    ══════════════════════════════════════════════════════════════════════════ */
-    let deferredInstallPrompt = null;
-    const btnInstallApp = document.getElementById('btn-install-app');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredInstallPrompt = e;
-      if (btnInstallApp) {
-        btnInstallApp.classList.remove('hidden');
-      }
-    });
-
-    if (btnInstallApp) {
-      btnInstallApp.addEventListener('click', async () => {
-        if (!deferredInstallPrompt) {
-          showToast("Tap your browser menu (⋮ or Share) and select 'Add to Home Screen'");
-          return;
-        }
-        deferredInstallPrompt.prompt();
-        const { outcome } = await deferredInstallPrompt.userChoice;
-        if (outcome === 'accepted') {
-          showToast("Installing Twilight Portal App...");
-        }
-        deferredInstallPrompt = null;
-        btnInstallApp.classList.add('hidden');
-      });
-    }
-
-    // Register Service Worker for offline PWA installation
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch((err) => {
@@ -471,1211 +731,7 @@
         });
       });
     }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       CONSTANTS & PALETTE
-    ══════════════════════════════════════════════════════════════════════════ */
-    const PALETTE = {
-      deepNight:       0x0B1026,
-      midnightViolet:  0x2B1B5A,
-      auroraTeal:      0x2EF2D0,
-      softMagenta:     0xFF5CC8,
-      warmGold:        0xFFD98A,
-      mistWhite:       0xEAF6FF
-    };
-
-    const PORTAL_SPECS = {
-      width: 1.25,      // meters
-      height: 2.25,     // meters
-      depth: 0.14,      // frame thickness
-      archRadius: 0.625 // radius of top half-circle
-    };
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       PROCEDURAL WEB AUDIO SYNTHESIZER
-    ══════════════════════════════════════════════════════════════════════════ */
-    class TwilightAudioEngine {
-      constructor() {
-        this.ctx = null;
-        this.masterGain = null;
-        this.isMuted = false;
-        this.padOscs = [];
-        this.isInitialized = false;
-      }
-
-      init() {
-        if (this.isInitialized) return;
-        try {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (!AudioContextClass) return;
-          this.ctx = new AudioContextClass();
-
-          this.masterGain = this.ctx.createGain();
-          this.masterGain.gain.setValueAtTime(0.55, this.ctx.currentTime);
-          this.masterGain.connect(this.ctx.destination);
-
-          this._startDreamyPad();
-          this.isInitialized = true;
-        } catch (e) {
-          console.warn("WebAudio initialization notice:", e);
-        }
-      }
-
-      resume() {
-        if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume();
-        }
-      }
-
-      toggleSound() {
-        this.init();
-        this.resume();
-        this.isMuted = !this.isMuted;
-        if (this.masterGain && this.ctx) {
-          const target = this.isMuted ? 0 : 0.55;
-          this.masterGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.08);
-        }
-        return !this.isMuted;
-      }
-
-      _startDreamyPad() {
-        if (!this.ctx) return;
-        const freqs = [110.0, 164.81, 220.0, 277.18, 329.63];
-
-        freqs.forEach((freq, idx) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          const filter = this.ctx.createBiquadFilter();
-
-          osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
-          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-          osc.detune.setValueAtTime((idx - 2) * 4.5, this.ctx.currentTime);
-
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(450 + idx * 80, this.ctx.currentTime);
-
-          gain.gain.setValueAtTime(0.045 / (idx + 1), this.ctx.currentTime);
-
-          osc.connect(filter);
-          filter.connect(gain);
-          gain.connect(this.masterGain);
-
-          osc.start();
-          this.padOscs.push(osc);
-        });
-      }
-
-      playPortalPlacedChime() {
-        if (!this.ctx || this.isMuted) return;
-        this.resume();
-        const now = this.ctx.currentTime;
-        const notes = [440.0, 554.37, 659.25, 880.0, 1108.73, 1318.51];
-
-        notes.forEach((freq, i) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now + i * 0.09);
-
-          gain.gain.setValueAtTime(0.0001, now + i * 0.09);
-          gain.gain.exponentialRampToValueAtTime(0.18, now + i * 0.09 + 0.04);
-          gain.gain.exponentialRampToValueAtTime(0.00001, now + i * 0.09 + 1.2);
-
-          osc.connect(gain);
-          gain.connect(this.masterGain);
-
-          osc.start(now + i * 0.09);
-          osc.stop(now + i * 0.09 + 1.25);
-        });
-      }
-
-      playPortalCrossingSwoosh(enteringVirtual) {
-        if (!this.ctx || this.isMuted) return;
-        this.resume();
-        const now = this.ctx.currentTime;
-
-        const osc = this.ctx.createOscillator();
-        const filter = this.ctx.createBiquadFilter();
-        const gain = this.ctx.createGain();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(enteringVirtual ? 95 : 190, now);
-
-        filter.type = 'bandpass';
-        filter.Q.setValueAtTime(4.0, now);
-        if (enteringVirtual) {
-          filter.frequency.setValueAtTime(250, now);
-          filter.frequency.exponentialRampToValueAtTime(2400, now + 0.35);
-        } else {
-          filter.frequency.setValueAtTime(2200, now);
-          filter.frequency.exponentialRampToValueAtTime(280, now + 0.35);
-        }
-
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.24, now + 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.masterGain);
-
-        osc.start(now);
-        osc.stop(now + 0.45);
-      }
-
-      stop() {
-        this.padOscs.forEach(o => {
-          try { o.stop(); } catch (e) {}
-        });
-        this.padOscs = [];
-        if (this.ctx && this.ctx.state !== 'closed') {
-          this.ctx.close().catch(() => {});
-        }
-        this.isInitialized = false;
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       APPLICATION STATE & GLOBALS
-    ══════════════════════════════════════════════════════════════════════════ */
-    const appState = {
-      isARSupported: false,
-      isARActive: false,
-      isFallbackMode: false,
-      portalPlaced: false,
-      isInsideVirtual: false,
-      cameraPlaneSign: 1,
-      portalPosition: new THREE.Vector3(),
-      portalNormal: new THREE.Vector3(0, 0, 1),
-      portalSpawnProgress: 0,
-      portalSpawning: false,
-      lastCrossTime: 0,
-      soundEnabled: true
-    };
-
-    let renderer, camera, sceneReal, sceneVirtual;
-    let xrSession = null;
-    let xrRefSpace = null;
-    let xrHitTestSource = null;
-    let reticleMesh = null;
-    let portalRoot = null;
-    let portalApertureMesh = null;
-    let portalOuterFrameMesh = null;
-    let portalHaloMesh = null;
-    let portalMotesPoints = null;
-    let virtualFloraGroup = null;
-    let firefliesSystem = null;
-    let fallbackControls = { isDragging: false, prevX: 0, prevY: 0, yaw: 0, pitch: 0 };
-
-    const audioEngine = new TwilightAudioEngine();
-
-    const dom = {
-      launchScreen: document.getElementById('launch-screen'),
-      uiContainer: document.getElementById('ui-container'),
-      btnEnterAR: document.getElementById('btn-enter-ar'),
-      btnFallback: document.getElementById('btn-fallback-preview'),
-      btnReset: document.getElementById('btn-reset-portal'),
-      btnExit: document.getElementById('btn-exit-ar'),
-      btnPlaceFallback: document.getElementById('btn-place-fallback'),
-      btnStepFallback: document.getElementById('btn-step-fallback'),
-      btnSound: document.getElementById('btn-sound-toggle'),
-      iconSoundOn: document.getElementById('icon-sound-on'),
-      iconSoundOff: document.getElementById('icon-sound-off'),
-      coachPill: document.getElementById('coach-pill'),
-      realmLabel: document.getElementById('realm-label'),
-      toast: document.getElementById('toast'),
-      flash: document.getElementById('portal-flash'),
-      canvas: document.getElementById('webgl-canvas')
-    };
-
-    function showToast(message, duration = 3200) {
-      dom.toast.textContent = message;
-      dom.toast.classList.add('show');
-      clearTimeout(dom.toast._timer);
-      dom.toast._timer = setTimeout(() => {
-        dom.toast.classList.remove('show');
-      }, duration);
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       THREE.JS ENGINE & SCENE INITIALIZATION
-    ══════════════════════════════════════════════════════════════════════════ */
-    function initThreeEngine() {
-      renderer = new THREE.WebGLRenderer({
-        canvas: dom.canvas,
-        antialias: true,
-        alpha: true,
-        stencil: true,
-        powerPreference: "high-performance"
-      });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.autoClear = false;
-      renderer.xr.enabled = true;
-
-      sceneReal = new THREE.Scene();
-      sceneVirtual = new THREE.Scene();
-
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 100);
-      sceneReal.add(camera);
-
-      setupLighting(sceneReal, false);
-      setupLighting(sceneVirtual, true);
-
-      buildReticle();
-      buildPortalStructure();
-      buildVirtualWorld();
-
-      window.addEventListener('resize', onWindowResize, false);
-      setupFallbackInteraction();
-    }
-
-    function setupLighting(targetScene, isVirtual) {
-      const ambient = new THREE.AmbientLight(
-        isVirtual ? PALETTE.midnightViolet : 0xFFFFFF,
-        isVirtual ? 1.4 : 1.0
-      );
-      targetScene.add(ambient);
-
-      const dirLight = new THREE.DirectionalLight(
-        isVirtual ? PALETTE.auroraTeal : 0xFFFFFF,
-        isVirtual ? 1.8 : 0.8
-      );
-      dirLight.position.set(2, 6, 3);
-      targetScene.add(dirLight);
-
-      if (isVirtual) {
-        const magentaRim = new THREE.PointLight(PALETTE.softMagenta, 2.8, 14);
-        magentaRim.position.set(-2, 3, -3);
-        targetScene.add(magentaRim);
-
-        const goldFloorLight = new THREE.PointLight(PALETTE.warmGold, 1.8, 10);
-        goldFloorLight.position.set(0, 0.4, 0);
-        targetScene.add(goldFloorLight);
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       PORTAL APERTURE & ORGANIC FRAME
-    ══════════════════════════════════════════════════════════════════════════ */
-    function createArchShape(w, h, r) {
-      const shape = new THREE.Shape();
-      const halfW = w / 2;
-      const straightH = Math.max(0.1, h - r);
-
-      shape.moveTo(-halfW, 0);
-      shape.lineTo(halfW, 0);
-      shape.lineTo(halfW, straightH);
-      shape.absarc(0, straightH, halfW, 0, Math.PI, false);
-      shape.lineTo(-halfW, 0);
-      return shape;
-    }
-
-    function buildPortalStructure() {
-      portalRoot = new THREE.Group();
-      portalRoot.visible = false;
-      sceneReal.add(portalRoot);
-
-      const w = PORTAL_SPECS.width;
-      const h = PORTAL_SPECS.height;
-      const r = PORTAL_SPECS.archRadius;
-
-      // 1. APERTURE (Stencil Mask Plane)
-      const apertureShape = createArchShape(w, h, r);
-      const apertureGeom = new THREE.ShapeGeometry(apertureShape, 36);
-      const apertureMat = new THREE.MeshBasicMaterial({
-        color: 0x000000,
-        colorWrite: false,
-        depthWrite: false
-      });
-      portalApertureMesh = new THREE.Mesh(apertureGeom, apertureMat);
-      portalApertureMesh.name = "PortalAperture";
-      portalRoot.add(portalApertureMesh);
-
-      // 2. ORGANIC ARCH FRAME
-      const archPath = new THREE.CurvePath();
-      const straightH = h - r;
-      const halfW = w / 2;
-
-      const p1 = new THREE.Vector3(-halfW, 0, 0);
-      const p2 = new THREE.Vector3(-halfW, straightH, 0);
-      const p3 = new THREE.Vector3(halfW, straightH, 0);
-      const p4 = new THREE.Vector3(halfW, 0, 0);
-
-      archPath.add(new THREE.LineCurve3(p1, p2));
-
-      const topArcPoints = 28;
-      for (let i = 0; i < topArcPoints; i++) {
-        const theta1 = Math.PI - (i / topArcPoints) * Math.PI;
-        const theta2 = Math.PI - ((i + 1) / topArcPoints) * Math.PI;
-        const ptA = new THREE.Vector3(Math.cos(theta1) * halfW, straightH + Math.sin(theta1) * halfW, 0);
-        const ptB = new THREE.Vector3(Math.cos(theta2) * halfW, straightH + Math.sin(theta2) * halfW, 0);
-        archPath.add(new THREE.LineCurve3(ptA, ptB));
-      }
-      archPath.add(new THREE.LineCurve3(p3, p4));
-
-      const frameTubeGeom = new THREE.TubeGeometry(archPath, 64, 0.065, 12, false);
-      const frameMat = new THREE.MeshStandardMaterial({
-        color: PALETTE.midnightViolet,
-        emissive: PALETTE.auroraTeal,
-        emissiveIntensity: 0.95,
-        roughness: 0.25,
-        metalness: 0.8
-      });
-      portalOuterFrameMesh = new THREE.Mesh(frameTubeGeom, frameMat);
-      portalRoot.add(portalOuterFrameMesh);
-
-      // 3. ADDITIVE GLOW HALO AROUND FRAME
-      const haloTubeGeom = new THREE.TubeGeometry(archPath, 64, 0.11, 8, false);
-      const haloMat = new THREE.MeshBasicMaterial({
-        color: PALETTE.auroraTeal,
-        transparent: true,
-        opacity: 0.35,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false
-      });
-      portalHaloMesh = new THREE.Mesh(haloTubeGeom, haloMat);
-      portalRoot.add(portalHaloMesh);
-
-      // 4. FLOATING ORBITING LIGHT MOTES
-      const moteCount = 28;
-      const moteGeom = new THREE.BufferGeometry();
-      const motePos = new Float32Array(moteCount * 3);
-      const moteSpeeds = [];
-
-      for (let i = 0; i < moteCount; i++) {
-        const t = Math.random();
-        const pt = archPath.getPoint(t);
-        motePos[i * 3]     = pt.x + (Math.random() - 0.5) * 0.25;
-        motePos[i * 3 + 1] = pt.y + (Math.random() - 0.5) * 0.25;
-        motePos[i * 3 + 2] = pt.z + (Math.random() - 0.5) * 0.25;
-
-        moteSpeeds.push({
-          progress: t,
-          speed: 0.08 + Math.random() * 0.08,
-          radius: 0.06 + Math.random() * 0.12,
-          angle: Math.random() * Math.PI * 2
-        });
-      }
-      moteGeom.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
-
-      const particleTexture = createCircularParticleTexture();
-      const moteMat = new THREE.PointsMaterial({
-        color: PALETTE.warmGold,
-        size: 0.06,
-        map: particleTexture,
-        transparent: true,
-        opacity: 0.85,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-      portalMotesPoints = new THREE.Points(moteGeom, moteMat);
-      portalMotesPoints.userData = { speeds: moteSpeeds, archPath };
-      portalRoot.add(portalMotesPoints);
-
-      // 5. Ground Glow Ring at Base
-      const ringGeom = new THREE.RingGeometry(0.35, halfW + 0.2, 32);
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: PALETTE.auroraTeal,
-        transparent: true,
-        opacity: 0.28,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false
-      });
-      const groundRing = new THREE.Mesh(ringGeom, ringMat);
-      groundRing.rotation.x = -Math.PI / 2;
-      groundRing.position.y = 0.005;
-      portalRoot.add(groundRing);
-    }
-
-    function createCircularParticleTexture() {
-      const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-      const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
-      grad.addColorStop(0, 'rgba(255,255,255,1)');
-      grad.addColorStop(0.35, 'rgba(46,242,208,0.7)');
-      grad.addColorStop(0.7, 'rgba(255,92,200,0.3)');
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 64, 64);
-      return new THREE.CanvasTexture(canvas);
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       VIRTUAL WORLD (BIOLUMINESCENT TWILIGHT)
-    ══════════════════════════════════════════════════════════════════════════ */
-    function buildVirtualWorld() {
-      // 1. SKY DOME: Procedural Vertical Gradient Sky + Aurora
-      const skyGeo = new THREE.SphereGeometry(45, 32, 24);
-      const skyMat = new THREE.ShaderMaterial({
-        side: THREE.BackSide,
-        depthWrite: false,
-        uniforms: {
-          topColor: { value: new THREE.Color(PALETTE.midnightViolet) },
-          bottomColor: { value: new THREE.Color(PALETTE.deepNight) },
-          auroraColor: { value: new THREE.Color(PALETTE.auroraTeal) },
-          time: { value: 0 }
-        },
-        vertexShader: `
-          varying vec3 vWorldPosition;
-          void main() {
-            vec4 worldPos = modelMatrix * vec4(position, 1.0);
-            vWorldPosition = worldPos.xyz;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          uniform vec3 topColor;
-          uniform vec3 bottomColor;
-          uniform vec3 auroraColor;
-          uniform float time;
-          varying vec3 vWorldPosition;
-          void main() {
-            float h = normalize(vWorldPosition).y;
-            vec3 col = mix(bottomColor, topColor, max(0.0, h + 0.15));
-
-            float aurora = sin(vWorldPosition.x * 0.08 + time * 0.4) *
-                           cos(vWorldPosition.z * 0.08 + time * 0.3);
-            if (h > 0.08 && h < 0.6) {
-              float band = smoothstep(0.08, 0.32, h) * smoothstep(0.6, 0.32, h);
-              col += auroraColor * band * (0.35 + 0.25 * aurora);
-            }
-            gl_FragColor = vec4(col, 1.0);
-          }
-        `
-      });
-      const skyMesh = new THREE.Mesh(skyGeo, skyMat);
-      sceneVirtual.add(skyMesh);
-      sceneVirtual.userData.skyMaterial = skyMat;
-
-      // 2. TWINKLING STARS
-      const starCount = 650;
-      const starGeom = new THREE.BufferGeometry();
-      const starPositions = new Float32Array(starCount * 3);
-      for (let i = 0; i < starCount; i++) {
-        const u = Math.random();
-        const v = Math.random();
-        const theta = u * 2.0 * Math.PI;
-        const phi = Math.acos(2.0 * v - 1.0);
-        const r = 40.0;
-        starPositions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-        starPositions[i * 3 + 1] = Math.abs(r * Math.cos(phi)) + 1.0;
-        starPositions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-      }
-      starGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-      const starMat = new THREE.PointsMaterial({
-        color: PALETTE.mistWhite,
-        size: 0.18,
-        transparent: true,
-        opacity: 0.85
-      });
-      sceneVirtual.add(new THREE.Points(starGeom, starMat));
-
-      // 3. VIRTUAL GROUND
-      const groundGeom = new THREE.CylinderGeometry(18, 18, 0.1, 40);
-      const groundMat = new THREE.MeshStandardMaterial({
-        color: 0x060918,
-        roughness: 0.3,
-        metalness: 0.5
-      });
-      const groundMesh = new THREE.Mesh(groundGeom, groundMat);
-      groundMesh.position.y = -0.05;
-      sceneVirtual.add(groundMesh);
-
-      // Concentric bioluminescent ripples
-      for (let i = 1; i <= 4; i++) {
-        const ringG = new THREE.RingGeometry(i * 2.5 - 0.04, i * 2.5 + 0.04, 48);
-        const ringM = new THREE.MeshBasicMaterial({
-          color: i % 2 === 0 ? PALETTE.auroraTeal : PALETTE.softMagenta,
-          transparent: true,
-          opacity: 0.25 / i,
-          side: THREE.DoubleSide
-        });
-        const rMesh = new THREE.Mesh(ringG, ringM);
-        rMesh.rotation.x = -Math.PI / 2;
-        rMesh.position.y = 0.005;
-        sceneVirtual.add(rMesh);
-      }
-
-      // 4. PROCEDURAL FLORA: Crystal Spires, Mushrooms, Jelly-Orbs
-      virtualFloraGroup = new THREE.Group();
-      sceneVirtual.add(virtualFloraGroup);
-
-      // Spires
-      const crystalGeom = new THREE.ConeGeometry(0.35, 2.4, 6);
-      const crystalMat = new THREE.MeshStandardMaterial({
-        color: PALETTE.midnightViolet,
-        emissive: PALETTE.auroraTeal,
-        emissiveIntensity: 0.7,
-        roughness: 0.15,
-        metalness: 0.9,
-        transparent: true,
-        opacity: 0.92
-      });
-
-      const crystalCoords = [
-        [-2.4, -3.2, 0.9], [2.6, -3.8, 1.2], [-3.5, 1.2, 1.1], [3.2, 1.8, 0.8],
-        [-1.8, -6.0, 1.5], [1.9, -5.5, 1.4], [0.0, -7.5, 2.0], [-4.2, -2.5, 1.3]
-      ];
-      crystalCoords.forEach(([x, z, scale]) => {
-        const mesh = new THREE.Mesh(crystalGeom, crystalMat);
-        mesh.position.set(x, 1.2 * scale, z);
-        mesh.scale.set(scale, scale, scale);
-        mesh.rotation.y = Math.random() * Math.PI;
-        mesh.rotation.z = (Math.random() - 0.5) * 0.15;
-        virtualFloraGroup.add(mesh);
-      });
-
-      // Bioluminescent Mushrooms
-      const mushroomStemGeom = new THREE.CylinderGeometry(0.04, 0.09, 0.55, 8);
-      const mushroomCapGeom = new THREE.SphereGeometry(0.24, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
-      const shroomStemMat = new THREE.MeshStandardMaterial({ color: 0x1A1435, roughness: 0.6 });
-      const shroomCapMat = new THREE.MeshStandardMaterial({
-        color: PALETTE.softMagenta,
-        emissive: PALETTE.softMagenta,
-        emissiveIntensity: 1.2,
-        roughness: 0.3
-      });
-
-      const shroomCoords = [
-        [-1.2, -2.2, 0.9], [1.3, -2.4, 0.8], [-1.9, -1.2, 1.1], [1.6, -1.0, 0.7],
-        [-2.8, -4.5, 1.2], [2.2, -4.8, 1.0], [-0.8, -5.2, 0.9], [1.0, -6.2, 1.3]
-      ];
-      shroomCoords.forEach(([x, z, scale]) => {
-        const shroomGroup = new THREE.Group();
-        const stem = new THREE.Mesh(mushroomStemGeom, shroomStemMat);
-        stem.position.y = 0.27;
-        const cap = new THREE.Mesh(mushroomCapGeom, shroomCapMat);
-        cap.position.y = 0.52;
-        shroomGroup.add(stem);
-        shroomGroup.add(cap);
-        shroomGroup.position.set(x, 0, z);
-        shroomGroup.scale.set(scale, scale, scale);
-        shroomGroup.rotation.y = Math.random() * Math.PI * 2;
-        virtualFloraGroup.add(shroomGroup);
-      });
-
-      // Floating Jelly-Orbs
-      const orbGroup = new THREE.Group();
-      const orbGeo = new THREE.SphereGeometry(0.25, 20, 16);
-      const orbMat = new THREE.MeshStandardMaterial({
-        color: PALETTE.auroraTeal,
-        emissive: PALETTE.auroraTeal,
-        emissiveIntensity: 0.9,
-        transparent: true,
-        opacity: 0.85,
-        roughness: 0.1
-      });
-
-      const orbs = [];
-      const orbPositions = [
-        [-1.5, 1.6, -3.0], [1.8, 2.1, -3.8], [0.3, 2.5, -4.5],
-        [-2.8, 1.9, -1.5], [2.5, 2.3, -2.0]
-      ];
-      orbPositions.forEach(([x, y, z], index) => {
-        const orb = new THREE.Mesh(orbGeo, orbMat);
-        orb.position.set(x, y, z);
-
-        const tendrilGeo = new THREE.CylinderGeometry(0.01, 0.03, 0.6, 6);
-        const tendrilMat = new THREE.MeshBasicMaterial({
-          color: PALETTE.softMagenta,
-          transparent: true,
-          opacity: 0.6
-        });
-        const tendril = new THREE.Mesh(tendrilGeo, tendrilMat);
-        tendril.position.y = -0.38;
-        orb.add(tendril);
-
-        orbGroup.add(orb);
-        orbs.push({ mesh: orb, baseY: y, phase: index * 1.4 });
-      });
-      virtualFloraGroup.add(orbGroup);
-      virtualFloraGroup.userData.orbs = orbs;
-
-      // 5. DRIFTING PARTICLES: Fireflies
-      const fireflyCount = 180;
-      const fireflyGeom = new THREE.BufferGeometry();
-      const fireflyPos = new Float32Array(fireflyCount * 3);
-      const fireflyMeta = [];
-
-      for (let i = 0; i < fireflyCount; i++) {
-        fireflyPos[i * 3]     = (Math.random() - 0.5) * 16;
-        fireflyPos[i * 3 + 1] = 0.2 + Math.random() * 4.5;
-        fireflyPos[i * 3 + 2] = (Math.random() - 0.5) * 16;
-
-        fireflyMeta.push({
-          baseX: fireflyPos[i * 3],
-          baseY: fireflyPos[i * 3 + 1],
-          baseZ: fireflyPos[i * 3 + 2],
-          speed: 0.4 + Math.random() * 0.6,
-          radius: 0.3 + Math.random() * 0.7,
-          phase: Math.random() * Math.PI * 2
-        });
-      }
-      fireflyGeom.setAttribute('position', new THREE.BufferAttribute(fireflyPos, 3));
-      const fireflyMat = new THREE.PointsMaterial({
-        color: PALETTE.warmGold,
-        size: 0.08,
-        map: createCircularParticleTexture(),
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-      firefliesSystem = new THREE.Points(fireflyGeom, fireflyMat);
-      firefliesSystem.userData = { meta: fireflyMeta };
-      sceneVirtual.add(firefliesSystem);
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       RETICLE (SURFACE DETECTION)
-    ══════════════════════════════════════════════════════════════════════════ */
-    function buildReticle() {
-      reticleMesh = new THREE.Group();
-      reticleMesh.matrixAutoUpdate = false;
-      reticleMesh.visible = false;
-
-      const ringGeom = new THREE.RingGeometry(0.18, 0.21, 36);
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: PALETTE.auroraTeal,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.9
-      });
-      const ring = new THREE.Mesh(ringGeom, ringMat);
-      ring.rotation.x = -Math.PI / 2;
-      reticleMesh.add(ring);
-
-      const dotGeom = new THREE.CircleGeometry(0.045, 16);
-      const dotMat = new THREE.MeshBasicMaterial({
-        color: PALETTE.warmGold,
-        side: THREE.DoubleSide
-      });
-      const dot = new THREE.Mesh(dotGeom, dotMat);
-      dot.rotation.x = -Math.PI / 2;
-      dot.position.y = 0.002;
-      reticleMesh.add(dot);
-
-      sceneReal.add(reticleMesh);
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       PORTAL PLACEMENT & SPAWN
-    ══════════════════════════════════════════════════════════════════════════ */
-    function placePortalAt(position, facingTarget) {
-      if (!position) return;
-
-      portalRoot.position.copy(position);
-
-      if (facingTarget) {
-        const lookTarget = new THREE.Vector3(facingTarget.x, position.y, facingTarget.z);
-        portalRoot.lookAt(lookTarget);
-      }
-
-      appState.portalPosition.copy(position);
-      portalRoot.getWorldDirection(appState.portalNormal);
-
-      appState.portalPlaced = true;
-      appState.portalSpawning = true;
-      appState.portalSpawnProgress = 0.001;
-      portalRoot.visible = true;
-      portalRoot.scale.set(0.001, 0.001, 0.001);
-
-      audioEngine.playPortalPlacedChime();
-      if (reticleMesh) reticleMesh.visible = false;
-
-      dom.coachPill.textContent = "Gateway activated! Walk straight through the glowing arch.";
-      showToast("✦ Portal opened to Twilight Realm");
-      dom.btnReset.classList.remove('hidden');
-      if (appState.isFallbackMode) {
-        dom.btnStepFallback.classList.remove('hidden');
-        dom.btnPlaceFallback.classList.add('hidden');
-      }
-    }
-
-    function resetPortal() {
-      appState.portalPlaced = false;
-      appState.portalSpawning = false;
-      appState.portalSpawnProgress = 0;
-      appState.isInsideVirtual = false;
-      portalRoot.visible = false;
-      dom.realmLabel.textContent = "Real World";
-
-      if (reticleMesh && appState.isARActive) {
-        reticleMesh.visible = true;
-      }
-
-      dom.coachPill.textContent = "Point at the floor and tap to place your portal";
-      showToast("Portal reset");
-      if (appState.isFallbackMode) {
-        dom.btnStepFallback.classList.add('hidden');
-        dom.btnPlaceFallback.classList.remove('hidden');
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       PORTAL CROSSING DETECTION (SIGNED DISTANCE)
-    ══════════════════════════════════════════════════════════════════════════ */
-    function checkPortalCrossing(camPos) {
-      if (!appState.portalPlaced || appState.portalSpawning) return;
-
-      const toCam = new THREE.Vector3().subVectors(camPos, appState.portalPosition);
-      const signedDist = toCam.dot(appState.portalNormal);
-
-      const localCam = portalRoot.worldToLocal(camPos.clone());
-      const insideApertureX = Math.abs(localCam.x) < (PORTAL_SPECS.width / 2 + 0.35);
-      const insideApertureY = localCam.y >= -0.1 && localCam.y <= (PORTAL_SPECS.height + 0.35);
-
-      const now = performance.now();
-
-      if (insideApertureX && insideApertureY) {
-        const threshold = 0.08;
-        if (Math.abs(signedDist) < threshold && (now - appState.lastCrossTime > 650)) {
-          if (appState.cameraPlaneSign > 0 && signedDist <= 0) {
-            triggerRealmTransition(true);
-          } else if (appState.cameraPlaneSign < 0 && signedDist >= 0) {
-            triggerRealmTransition(false);
-          }
-          appState.lastCrossTime = now;
-        }
-      }
-
-      appState.cameraPlaneSign = signedDist >= 0 ? 1 : -1;
-    }
-
-    function triggerRealmTransition(toVirtual) {
-      appState.isInsideVirtual = toVirtual;
-      dom.realmLabel.textContent = toVirtual ? "Twilight Realm" : "Real World";
-
-      if (navigator.vibrate) {
-        navigator.vibrate([40, 30, 60]);
-      }
-
-      dom.flash.classList.add('flash');
-      setTimeout(() => {
-        dom.flash.classList.remove('flash');
-      }, 50);
-
-      audioEngine.playPortalCrossingSwoosh(toVirtual);
-
-      if (toVirtual) {
-        showToast("✦ Stepped into Bioluminescent Twilight");
-        dom.coachPill.textContent = "You are inside the Twilight Realm! Turn around to see the portal back.";
-      } else {
-        showToast("Stepped back into Real World");
-        dom.coachPill.textContent = "You are back in the real world.";
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       STENCIL BUFFER TWO-WAY PORTAL RENDER PIPELINE
-    ══════════════════════════════════════════════════════════════════════════ */
-    function renderPortalFrame() {
-      const gl = renderer.getContext();
-
-      if (!appState.portalPlaced || !portalRoot.visible) {
-        renderer.clear();
-        renderer.render(sceneReal, camera);
-        return;
-      }
-
-      // OUTSIDE: View virtual world only inside arch aperture
-      if (!appState.isInsideVirtual) {
-        renderer.clear(true, true, true);
-
-        gl.enable(gl.STENCIL_TEST);
-        gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
-        gl.stencilFunc(gl.ALWAYS, 1, 0xFF);
-        gl.stencilMask(0xFF);
-
-        portalApertureMesh.visible = true;
-        renderer.render(portalApertureMesh, camera);
-
-        gl.stencilFunc(gl.EQUAL, 1, 0xFF);
-        gl.stencilMask(0x00);
-        renderer.clearDepth();
-        renderer.render(sceneVirtual, camera);
-
-        gl.disable(gl.STENCIL_TEST);
-        portalApertureMesh.visible = false;
-        renderer.render(sceneReal, camera);
-        portalApertureMesh.visible = true;
-      }
-      // INSIDE: View virtual world everywhere except back through arch aperture
-      else {
-        renderer.clear(true, true, true);
-
-        gl.enable(gl.STENCIL_TEST);
-        gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
-        gl.stencilFunc(gl.ALWAYS, 2, 0xFF);
-        gl.stencilMask(0xFF);
-
-        portalApertureMesh.visible = true;
-        renderer.render(portalApertureMesh, camera);
-
-        gl.stencilFunc(gl.NOTEQUAL, 2, 0xFF);
-        gl.stencilMask(0x00);
-        renderer.clearDepth();
-        renderer.render(sceneVirtual, camera);
-
-        gl.disable(gl.STENCIL_TEST);
-        portalApertureMesh.visible = false;
-        renderer.render(sceneReal, camera);
-        portalApertureMesh.visible = true;
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       ANIMATION LOOP & DYNAMIC EFFECTS
-    ══════════════════════════════════════════════════════════════════════════ */
-    const clock = new THREE.Clock();
-
-    function onAnimationFrame(time, frame) {
-      const delta = clock.getDelta();
-      const elapsed = clock.getElapsedTime();
-
-      // 1. Spawn ease-out opening animation
-      if (appState.portalSpawning) {
-        appState.portalSpawnProgress += delta * 1.1;
-        if (appState.portalSpawnProgress >= 1.0) {
-          appState.portalSpawnProgress = 1.0;
-          appState.portalSpawning = false;
-        }
-        const t = appState.portalSpawnProgress;
-        const scaleY = 1 - Math.pow(1 - t, 3);
-        const scaleXZ = 1 - Math.pow(1 - t, 2);
-        portalRoot.scale.set(scaleXZ, scaleY, scaleXZ);
-      }
-
-      // 2. Bioluminescent frame pulse
-      if (portalOuterFrameMesh) {
-        const pulse = 0.8 + 0.35 * Math.sin(elapsed * 2.2);
-        portalOuterFrameMesh.material.emissiveIntensity = pulse;
-        if (portalHaloMesh) {
-          portalHaloMesh.material.opacity = 0.25 + 0.15 * Math.sin(elapsed * 2.2);
-        }
-      }
-
-      // 3. Orbiting arch motes
-      if (portalMotesPoints && portalMotesPoints.userData.speeds) {
-        const geom = portalMotesPoints.geometry;
-        const pos = geom.attributes.position.array;
-        const meta = portalMotesPoints.userData.speeds;
-        const path = portalMotesPoints.userData.archPath;
-
-        for (let i = 0; i < meta.length; i++) {
-          const m = meta[i];
-          m.progress = (m.progress + delta * m.speed) % 1.0;
-          m.angle += delta * 1.8;
-          const pt = path.getPoint(m.progress);
-          pos[i * 3]     = pt.x + Math.cos(m.angle) * m.radius;
-          pos[i * 3 + 1] = pt.y;
-          pos[i * 3 + 2] = pt.z + Math.sin(m.angle) * m.radius;
-        }
-        geom.attributes.position.needsUpdate = true;
-      }
-
-      // 4. Floating flora and fireflies
-      if (virtualFloraGroup && virtualFloraGroup.userData.orbs) {
-        virtualFloraGroup.userData.orbs.forEach(orb => {
-          orb.mesh.position.y = orb.baseY + Math.sin(elapsed * 1.2 + orb.phase) * 0.14;
-        });
-      }
-      if (firefliesSystem && firefliesSystem.userData.meta) {
-        const pos = firefliesSystem.geometry.attributes.position.array;
-        const meta = firefliesSystem.userData.meta;
-        for (let i = 0; i < meta.length; i++) {
-          const m = meta[i];
-          pos[i * 3]     = m.baseX + Math.sin(elapsed * m.speed + m.phase) * m.radius;
-          pos[i * 3 + 1] = m.baseY + Math.cos(elapsed * (m.speed * 0.8) + m.phase) * 0.25;
-          pos[i * 3 + 2] = m.baseZ + Math.cos(elapsed * m.speed + m.phase) * m.radius;
-        }
-        firefliesSystem.geometry.attributes.position.needsUpdate = true;
-      }
-
-      // 5. Procedural sky aurora uniform
-      if (sceneVirtual.userData.skyMaterial) {
-        sceneVirtual.userData.skyMaterial.uniforms.time.value = elapsed;
-      }
-
-      // 6. WebXR Hit-Testing in AR mode
-      if (frame && xrHitTestSource && !appState.portalPlaced) {
-        const hitTestResults = frame.getHitTestResults(xrHitTestSource);
-        if (hitTestResults.length > 0) {
-          const hit = hitTestResults[0];
-          const pose = hit.getPose(xrRefSpace);
-          if (pose) {
-            reticleMesh.visible = true;
-            reticleMesh.matrix.fromArray(pose.transform.matrix);
-            dom.coachPill.textContent = "Tap screen to place the Twilight Portal on floor";
-          }
-        } else {
-          reticleMesh.visible = false;
-          dom.coachPill.textContent = "Scanning floor... Move phone slowly";
-        }
-      }
-
-      // 7. Check camera plane crossing
-      checkPortalCrossing(camera.position);
-
-      // 8. Stencil buffer rendering
-      renderPortalFrame();
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       WEBXR IMMERSIVE-AR SESSION LIFECYCLE
-    ══════════════════════════════════════════════════════════════════════════ */
-    async function checkWebXRSupport() {
-      if ('xr' in navigator) {
-        try {
-          appState.isARSupported = await navigator.xr.isSessionSupported('immersive-ar');
-        } catch (e) {
-          appState.isARSupported = false;
-        }
-      } else {
-        appState.isARSupported = false;
-      }
-
-      if (!appState.isARSupported) {
-        dom.btnEnterAR.innerHTML = `
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-          </svg>
-          AR Not Available on Device
-        `;
-        dom.btnEnterAR.style.opacity = '0.55';
-        dom.btnEnterAR.style.cursor = 'not-allowed';
-      }
-    }
-
-    async function startARSession() {
-      if (!appState.isARSupported) {
-        showToast("WebXR AR not supported on this browser/OS. Entering 3D Preview.");
-        startFallbackMode();
-        return;
-      }
-
-      try {
-        audioEngine.init();
-
-        const session = await navigator.xr.requestSession('immersive-ar', {
-          requiredFeatures: ['hit-test', 'local-floor'],
-          optionalFeatures: ['dom-overlay'],
-          domOverlay: { root: dom.uiContainer }
-        });
-
-        xrSession = session;
-        appState.isARActive = true;
-        appState.isFallbackMode = false;
-
-        renderer.xr.setReferenceSpaceType('local-floor');
-        await renderer.xr.setSession(session);
-
-        xrRefSpace = await session.requestReferenceSpace('local-floor');
-        const viewerSpace = await session.requestReferenceSpace('viewer');
-        xrHitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-
-        session.addEventListener('select', onARScreenTap);
-        session.addEventListener('end', onARSessionEnded);
-
-        dom.launchScreen.classList.add('hidden');
-        dom.uiContainer.classList.remove('hidden');
-        dom.btnStepFallback.classList.add('hidden');
-        dom.btnPlaceFallback.classList.add('hidden');
-        dom.coachPill.textContent = "Point at the floor to find a surface";
-
-        renderer.setAnimationLoop(onAnimationFrame);
-        showToast("✦ AR Session active. Scan your floor.");
-      } catch (err) {
-        console.error("Failed to start AR Session:", err);
-        showToast("Camera or AR permission denied. Starting 3D Preview mode.", 4000);
-        startFallbackMode();
-      }
-    }
-
-    function onARScreenTap() {
-      if (!appState.portalPlaced && reticleMesh && reticleMesh.visible) {
-        const placePos = new THREE.Vector3();
-        placePos.setFromMatrixPosition(reticleMesh.matrix);
-        placePortalAt(placePos, camera.position);
-      }
-    }
-
-    function onARSessionEnded() {
-      if (xrHitTestSource) {
-        try { xrHitTestSource.cancel(); } catch (e) {}
-        xrHitTestSource = null;
-      }
-      xrSession = null;
-      appState.isARActive = false;
-      resetPortal();
-
-      renderer.setAnimationLoop(null);
-      dom.uiContainer.classList.add('hidden');
-      dom.launchScreen.classList.remove('hidden');
-      showToast("AR session ended");
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       FALLBACK 3D PREVIEW MODE (DESKTOP & IOS SAFARI)
-    ══════════════════════════════════════════════════════════════════════════ */
-    function startFallbackMode() {
-      audioEngine.init();
-      appState.isFallbackMode = true;
-      appState.isARActive = false;
-
-      dom.launchScreen.classList.add('hidden');
-      dom.uiContainer.classList.remove('hidden');
-      dom.btnPlaceFallback.classList.remove('hidden');
-      dom.btnStepFallback.classList.add('hidden');
-
-      camera.position.set(0, 1.4, 2.8);
-      camera.lookAt(0, 1.1, 0);
-
-      placePortalAt(new THREE.Vector3(0, 0, -0.6), camera.position);
-
-      dom.coachPill.textContent = "Drag to look around. Tap 'Step Through' to enter realm.";
-      showToast("✦ Interactive 3D Preview Mode active");
-
-      renderer.setAnimationLoop(onAnimationFrame);
-    }
-
-    function setupFallbackInteraction() {
-      let isTouching = false;
-      let startX = 0, startY = 0;
-
-      const onStart = (clientX, clientY) => {
-        isTouching = true;
-        startX = clientX;
-        startY = clientY;
-      };
-
-      const onMove = (clientX, clientY) => {
-        if (!isTouching || !appState.isFallbackMode) return;
-        const dx = clientX - startX;
-        const dy = clientY - startY;
-        startX = clientX;
-        startY = clientY;
-
-        fallbackControls.yaw -= dx * 0.005;
-        fallbackControls.pitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, fallbackControls.pitch - dy * 0.005));
-
-        camera.rotation.order = 'YXZ';
-        camera.rotation.y = fallbackControls.yaw;
-        camera.rotation.x = fallbackControls.pitch;
-      };
-
-      const onEnd = () => { isTouching = false; };
-
-      window.addEventListener('mousedown', (e) => onStart(e.clientX, e.clientY));
-      window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
-      window.addEventListener('mouseup', onEnd);
-
-      window.addEventListener('touchstart', (e) => {
-        if (e.touches.length > 0) onStart(e.touches[0].clientX, e.touches[0].clientY);
-      }, { passive: true });
-
-      window.addEventListener('touchmove', (e) => {
-        if (e.touches.length > 0) onMove(e.touches[0].clientX, e.touches[0].clientY);
-      }, { passive: true });
-
-      window.addEventListener('touchend', onEnd);
-
-      if (window.DeviceOrientationEvent) {
-        window.addEventListener('deviceorientation', (e) => {
-          if (!appState.isFallbackMode || isTouching || e.alpha === null) return;
-          const alpha = THREE.MathUtils.degToRad(e.alpha);
-          const beta = THREE.MathUtils.degToRad(e.beta - 60);
-          camera.rotation.y = alpha;
-          camera.rotation.x = beta * 0.5;
-        });
-      }
-    }
-
-    function toggleStepFallback() {
-      if (!appState.portalPlaced) return;
-      if (!appState.isInsideVirtual) {
-        camera.position.set(0, 1.3, -1.8);
-        triggerRealmTransition(true);
-        dom.btnStepFallback.textContent = "⚡ Step Back Outside";
-      } else {
-        camera.position.set(0, 1.4, 2.2);
-        triggerRealmTransition(false);
-        dom.btnStepFallback.textContent = "⚡ Step Through";
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════════
-       EVENT LISTENERS & BINDINGS
-    ══════════════════════════════════════════════════════════════════════════ */
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    dom.btnEnterAR.addEventListener('click', () => {
-      audioEngine.init();
-      startARSession();
-    });
-
-    dom.btnFallback.addEventListener('click', () => {
-      audioEngine.init();
-      startFallbackMode();
-    });
-
-    dom.btnReset.addEventListener('click', () => {
-      resetPortal();
-    });
-
-    dom.btnPlaceFallback.addEventListener('click', () => {
-      const placePos = new THREE.Vector3(0, 0, -1.2);
-      placePortalAt(placePos, camera.position);
-    });
-
-    dom.btnStepFallback.addEventListener('click', () => {
-      toggleStepFallback();
-    });
-
-    dom.btnExit.addEventListener('click', () => {
-      if (xrSession) {
-        xrSession.end();
-      } else if (appState.isFallbackMode) {
-        appState.isFallbackMode = false;
-        resetPortal();
-        renderer.setAnimationLoop(null);
-        dom.uiContainer.classList.add('hidden');
-        dom.launchScreen.classList.remove('hidden');
-      }
-    });
-
-    dom.btnSound.addEventListener('click', () => {
-      const soundIsActive = audioEngine.toggleSound();
-      dom.iconSoundOn.classList.toggle('hidden', !soundIsActive);
-      dom.iconSoundOff.classList.toggle('hidden', soundIsActive);
-      showToast(soundIsActive ? "Audio enabled" : "Audio muted");
-    });
-
-    dom.canvas.addEventListener('webglcontextlost', (e) => {
-      e.preventDefault();
-      showToast("Graphics context lost. Restoring scene...");
-    }, false);
-
-    dom.canvas.addEventListener('webglcontextrestored', () => {
-      initThreeEngine();
-      showToast("Graphics context restored.");
-    }, false);
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      initThreeEngine();
-      await checkWebXRSupport();
-    });
   </script>
 </body>
+
 </html>

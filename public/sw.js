@@ -17,9 +17,7 @@ const PRECACHE_ASSETS = [
   '/icons/icon-192-maskable.png',
   '/icons/icon-512-maskable.png',
   '/icons/apple-touch-icon.png',
-  '/icons/favicon.svg',
-  'https://cdn.jsdelivr.net/npm/aframe@1.6.0/dist/aframe.min.js',
-  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;600;700&display=swap'
+  '/icons/favicon.svg'
 ];
 
 // Install event — pre-cache core shell

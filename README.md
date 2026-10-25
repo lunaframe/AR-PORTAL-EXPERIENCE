@@ -1,289 +1,184 @@
-# AR Portal Effect
+# Twilight Portal — Production WebXR AR Experience & Bioluminescent Realm
 
-A production-quality **WebXR AR Portal Effect** application. Place portals in your real environment that open into different virtual worlds — complete with animated rim shaders, spatial audio, and walk-through detection.
-
-> **Portfolio/Demo Quality** — cinematic shader effects, six portal themes, multi-portal support, WebXR lighting estimation, and localStorage persistence.
+A production-grade, immersive WebXR Augmented Reality portal experience built with Three.js, Vite, and the Web Audio API. A glowing portal opens in the user's real room, allowing them to place it on the floor or wall, watch it open with cinematic particle and shockwave sequences, and physically walk through into an infinite bioluminescent twilight world.
 
 ---
 
-## ✨ Features
+## ✦ Core Features & Highlights
 
-| Feature | Status |
-|---------|--------|
-| AR hit-test placement (tap to place) | ✅ |
-| Stencil-occlusion portal rendering | ✅ |
-| Classic Wormhole theme (GLSL swirl) | ✅ |
-| Glass Shatter theme (Voronoi dissolve) | ✅ |
-| Custom 360° Photo/Video portal | ✅ |
-| Walk-through detection + transition | ✅ |
-| Spatial Web Audio API (HRTF) | ✅ |
-| In-scene 3D theme menu | ✅ |
-| WebXR Lighting Estimation rim tint | ✅ |
-| Multi-portal support (up to 8) | ✅ |
-| localStorage theme + position save | ✅ |
-| Magic Window fallback (non-AR) | ✅ |
-| Nature Rift (forest interior + organic rim) | ✅ |
-| Elemental Fire (lava interior + fire rim shader) | ✅ |
-| Sci-Fi Stargate (hologram corridor + chevron rim) | ✅ |
+- **Multi-Platform Support**:
+  - **Android Chrome (ARCore)**: Full WebXR `immersive-ar` session with `hit-test`, `dom-overlay` (glassmorphism UI), `local-floor`, and `light-estimation`.
+  - **iOS Safari & Unsupported Browsers**: Robust **Camera Mode Fallback** utilizing `getUserMedia` rear camera stream as the physical background, DeviceOrientation gyro tracking (with iOS 13+ permission request flow), and touch-drag rotation.
+  - **Desktop 3D Preview**: Full interactive orbit preview mode allowing instant testing on any desktop computer without needing a mobile device.
+  - **Automatic Capability Detection**: Auto-detects device capabilities via `navigator.xr.isSessionSupported('immersive-ar')` and displays the appropriate launch console buttons ("Enter AR", "Open Camera Mode", or "3D Preview").
+
+- **Procedural Spatial Audio Engine (Web Audio API)**:
+  - 100% procedural synthesis with zero copyrighted or external audio dependencies.
+  - Single `AudioContext` created and unlocked on the first user interaction.
+  - **Layer 1**: Evolving ambient pad drone (detuned triangle/sine oscillators with slow LFO resonant low-pass filter sweeps).
+  - **Layer 2**: 3D spatialized portal core hum with HRTF `PannerNode`, pitch-shifting and intensifying as the user approaches the portal.
+  - **Layer 3**: One-shots (scan blip, placement sub punch whoosh, opening swell, crossing "whoomp" with reverb bloom, and UI feedback clicks).
+  - **Layer 4**: Twilight realm ambience (filtered pink noise wind, ethereal crickets, and pentatonic glass bell chimes).
+  - **Real-Time AnalyserNode**: Bass (20–150Hz), mid, and treble (2k–12kHz) metrics directly driving portal energy pulse, crystal luminescence, and spore sparkle.
+  - Dynamic cross-fading: entering the portal muffles the real world and opens up a wide cavernous reverb soundscape.
+
+- **43 Visual Effects Across 6 Modular Subsystems**:
+  - **Group A (Portal Core)**: Domain-warped FBM swirl vortex with chromatic aberration & fresnel, glowing energy torus ring with electric arcs, orbiting runic glyphs with trails, gravity-lens ripple, branching ground lightning tendrils, cinematic pinpoint/shockwave/spark opening sequence, and gravitational implosion closing sequence.
+  - **Group B (Particles)**: Logarithmic spiral spark stream into the vortex, 2,800+ bioluminescent spores with sine-wave twinkle and portal gravity, 60 wandering fireflies avoiding the camera, rising thermal embers & ash with turbulence, dust motes inside god-ray cones, instanced petal/leaf vortex swirl, interactive tap bursts, and camera motion ribbon trail.
+  - **Group C (Light & Atmosphere)**: Stacked volumetric god rays, floor glow decal with grounding contact shadow, breathing PointLight, low volumetric billboard fog with scrolling noise, proximity color grading, anamorphic lens flare streaks, water caustics, and real-world light estimation tinting.
+  - **Group D (The Twilight World)**: Aurora sky dome with scrolling ribbons and shooting stars, instanced glowing mushroom groves with traveling wave pulses, translucent floating jellyfish with swaying tentacles, reflective water plane with interactive tap ripple propagation, giant faceted crystals with audio glow, multi-depth parallax mist, swaying bioluminescent grass lighting up near the camera, and glowing celestial moon with halo.
+  - **Group E (Interaction & Reactive)**: Crossing-through transition (screen flash, radial blur, FOV punch, haptic vibration, particle burst), proximity speed & brightness reactivity, bass/treble audio visual reactivity, touch gestures (pinch-to-scale, two-finger twist rotate, long-press shockwave), time-of-day dusk-to-night slider, and 3 one-tap theme presets (Twilight, Ember, Frost).
+  - **Group F (UI & Screen Effects)**: Glassmorphism HUD within DOM overlay, animated particle-text splash canvas, scanning reticle with rotating ticks and lock snap, high-res screenshot capture with watermark banner and shutter flash, and slide-up effects drawer.
+
+- **Adaptive Performance & Quality Engine**:
+  - Real-time rolling FPS counter with auto-downgrade below 45 FPS to maintain a target 60 FPS on mid-range devices.
+  - Quality tiers (**Low / Medium / High**) dynamically scaling particle count, shadow passes, and pixel ratio.
+  - Proper disposal of geometries, materials, and canvas textures to prevent WebGL memory leaks during repeated placement.
 
 ---
 
-## 🚀 Quick Start
+## ✦ Architecture & Project Structure
 
-### Prerequisites
-- **Node.js 18+** ([nodejs.org](https://nodejs.org))
-- A browser with WebXR support (see [Browser Support](#browser-support))
+```
+AR PORTAL EXPERIENCE/
+├── public/
+│   ├── icons/                 # PWA icons (192px, 512px, maskable, favicon)
+│   ├── manifest.json          # Web App Manifest
+│   └── sw.js                  # PWA Service Worker for offline shell caching
+├── src/
+│   ├── audio/
+│   │   └── engine.js          # Procedural Web Audio engine & HRTF spatial audio
+│   ├── effects/
+│   │   ├── core/              # Group A: Vortex, Energy Ring, Runes, Lightning, Sequences
+│   │   ├── particles/         # Group B: Sparks, Spores, Fireflies, Embers, Petals, Ribbon
+│   │   ├── lighting/          # Group C: God Rays, Decal, PointLight, Fog, Flares, Caustics
+│   │   ├── postprocessing/    # Group F: Bloom, Aberration & Film Grain (Preview/Camera mode)
+│   │   └── effectsManager.js  # Central coordinator for life-cycle, rendering & quality
+│   ├── fallback/
+│   │   └── cameraMode.js      # iOS rear camera feed, DeviceOrientation gyro & desktop orbit
+│   ├── portal/
+│   │   ├── portal.js          # Master portal assembly & crossing plane detection
+│   │   ├── reticle.js         # Animated scanning reticle with rotating ticks
+│   │   └── shaders/           # GLSL shaders (vortex swirl, energy ring, etc.)
+│   ├── ui/
+│   │   └── uiManager.js       # Glassmorphism UI, particle splash title & effects drawer
+│   ├── utils/
+│   │   ├── quality.js         # Dynamic Quality Manager (FPS tracking & auto-downgrade)
+│   │   ├── screenshot.js      # High-res screenshot generator with watermark & flash
+│   │   └── textures.js        # Procedural canvas textures (glows, runes, sparks, flares)
+│   ├── world/                 # Group D: Aurora sky, mushrooms, jellyfish, water, crystals, grass
+│   └── main.js                # Application entry & WebGL/XR animation loop
+├── index.html                 # DOM structure, CSS tokens and PWA tags
+└── vite.config.js             # Vite configuration with GLSL shader support
+```
 
-### Installation
+---
 
+## ✦ Getting Started
+
+### 1. Prerequisites
+- Node.js (v18.0.0 or higher recommended)
+- Modern web browser (Google Chrome, Safari, or Edge)
+
+### 2. Local Development
 ```bash
-# Clone or download the project
-cd "AR PORTAL EFFECT"
-
 # Install dependencies
 npm install
 
-# Start development server
+# Start Vite development server
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`.
+By default, Vite binds to `http://localhost:3000/`. You can also access it on your local network via your machine's IP address (e.g. `http://192.168.x.x:3000/`).
 
-### Production Build
-
+### 3. Production Build
 ```bash
+# Build production bundle
 npm run build
-# Output in /dist — deploy to Netlify, Vercel, or GitHub Pages
-npm run preview  # preview the production build locally
+
+# Preview production build locally
+npm run preview
 ```
 
 ---
 
----
+## ✦ Running on Mobile Devices
 
-## 📱 Testing on a Real AR Device & Installing the PWA
+WebXR and camera access require a **secure context (HTTPS)** or `localhost`.
 
-WebXR and full PWA installation require **HTTPS** (or `localhost`). The dev server runs on HTTP by default, so a secure tunnel is recommended for device testing.
+### A. Testing on Android Chrome (WebXR ARCore)
+1. **Via USB Debugging (Recommended & Free)**:
+   - Connect your Android phone to your computer via USB.
+   - Enable **Developer Options** and **USB Debugging** on the phone.
+   - Open Chrome on your desktop and navigate to `chrome://inspect/#devices`.
+   - Under **Port forwarding**, add port `3000` mapping to `localhost:3000`.
+   - On your phone's Chrome browser, open `http://localhost:3000/`.
+   - Chrome recognizes `localhost` as a secure context, enabling full WebXR `immersive-ar`!
+2. **Via Cloudflare Tunnel or ngrok (Over the Air)**:
+   - Run `npx ngrok http 3000` or `cloudflared tunnel --url http://localhost:3000`.
+   - Open the resulting `https://*.ngrok-free.app` URL on your Android device.
 
-### Option A — ngrok (Recommended)
+### B. Testing on iPhone / iPad (iOS Safari)
+Apple iOS does not currently support the WebXR `immersive-ar` standard. The app automatically detects this and offers **Camera Mode**:
+1. Open the HTTPS URL (via ngrok, Cloudflare, or local HTTPS) in Safari.
+2. Tap **"Open Camera Mode"**.
+3. Tap **Allow** when prompted for camera access.
+4. When prompted for Device Motion & Orientation permissions, tap **Allow** to enable 360-degree gyro tracking.
+5. The portal will appear positioned directly in your room with the live camera feed behind it!
 
-```bash
-# 1. Start the Vite dev server (or production preview)
-cmd.exe /c npm run dev      # running on port 3000
-
-# 2. In a separate terminal, expose the port with HTTPS
-ngrok http 3000
-# Copy the https://<subdomain>.ngrok-free.app URL and open it on your phone
-```
-
-### Option B — Production Build & Preview with Tunnel
-
-```bash
-cmd.exe /c npm run build
-cmd.exe /c npm run preview
-# Preview server runs on port 4173 — tunnel with: ngrok http 4173
-```
-
----
-
-## 📲 How to Install the PWA on Your Phone
-
-Once you have opened the `https://...` URL on your phone:
-
-### On Android (Google Chrome)
-1. Open the URL in **Google Chrome**.
-2. An **"Install App"** button will automatically light up in the top header bar. You can tap it directly to trigger the native installation prompt!
-3. Alternatively, tap the three-dot menu (**⋮**) in Chrome's top right corner and tap **"Install app"** (or **"Add to Home screen"**).
-4. Chrome will package the app via WebAPK with the cosmic portal icon and add it to your app drawer and home screen.
-5. Launching from the home screen opens the app in immersive standalone mode without browser URL bars, preserving all WebXR AR camera permissions.
-
-### On iOS (Apple Safari)
-1. Open the URL in **Safari** on iOS 16+.
-2. Tap the **Share** button (box with upward arrow ⎋) at the bottom toolbar.
-3. Scroll down and tap **"Add to Home Screen"**.
-4. Tap **Add** in the top right.
-5. Launch the app from your iPhone home screen with the custom 180x180 glowing portal icon.
-6. *Note for iOS WebXR:* Ensure the WebXR flag is enabled in iOS Settings:
-   **Settings → Safari → Advanced → Experimental Features → WebXR Device API** ✓
-
-### Launching the AR Experience
-1. Tap the prominent glowing **"Start AR Experience"** focal button on the launch screen.
-2. Grant camera access when prompted by the browser/system.
-3. Slowly point your phone camera at a flat surface (floor or desk).
-4. When the cyan/white reticle locks onto the surface plane, **tap anywhere on the screen** to open a portal into that dimension!
-5. Walk physically towards and through the event horizon to explore the virtual world.
-
+### C. Desktop 3D Preview Mode
+1. Open `http://localhost:3000/` in any desktop browser.
+2. Click **"3D Desktop Preview"**.
+3. Use your mouse to click and drag to orbit around the portal, and use the mouse wheel to zoom in and out.
+4. Use the **⚡ Step Through** button to test entering and exiting the virtual realm.
 
 ---
 
-## 🎨 Portal Themes
+## ✦ Installing as a Progressive Web App (PWA)
 
-### Implemented
+The application includes an offline service worker and Web App Manifest:
+- **Android**: Tap the menu (⋮) in Chrome and select **"Install app"** or **"Add to Home screen"**.
+- **iOS**: Tap the **Share** button in Safari and select **"Add to Home Screen"**.
+- Once installed, the app runs in full-screen standalone mode with translucent status bars and offline cached assets.
 
-| Theme | ID | Effect |
-|-------|-----|--------|
-| Classic Wormhole | `wormhole` | Domain-warped fbm plasma swirl, cosmic color palette |
-| Glass Shatter | `glass-shatter` | Voronoi crack pattern, per-shard cascade dissolve |
-| 360° Photo/Video | `custom-360` | Equirectangular photo upload, soft gaussian glow rim |
+---
 
-### Adding a New Theme
+## ✦ Customization Guide
 
-1. Create `/src/themes/my-theme.ts`:
-
-```typescript
-import type { PortalTheme } from './index';
-
-export const MY_THEME: PortalTheme = {
-  id:           'my-theme',
-  name:         'My Theme',
-  description:  'Description shown in the UI',
-  emoji:        '⚡',
-  gradientCss:  'linear-gradient(135deg, #001a00, #003300)',
-
-  rimShaderKey: 'wormhole',          // or 'glow', 'glass-shatter', 'nature', 'scifi'
-  rimColor:     [0.0, 1.0, 0.5],    // RGB 0–1
-  rimIntensity: 2.0,
-
-  interior: {
-    type:   'skybox-gradient',
-    colorA: '#001a00',
-    colorB: '#003300',
-    // Or: type: '360-photo', src: '/assets/interiors/my-360.jpg'
+### Customizing Color Themes
+Theme palettes are configured in `src/effects/effectsManager.js`:
+```javascript
+this.themes = {
+  twilight: {
+    primary: { r: 27 / 255, g: 20 / 255, b: 100 / 255 },  // Indigo #1b1464
+    secondary: { r: 109 / 255, g: 40 / 255, b: 217 / 255 },// Violet #6d28d9
+    accent1: { r: 20 / 255, g: 241 / 255, b: 217 / 255 },  // Teal #14f1d9
+    accent2: { r: 255 / 255, g: 60 / 255, b: 172 / 255 },  // Magenta #ff3cac
+    highlight: { r: 232 / 255, g: 247 / 255, b: 255 / 255 },// Soft White #e8f7ff
   },
-
-  activation: {
-    type:       'iris',              // 'iris' | 'iris-fast' | 'shatter'
-    durationMs: 1800,
-  },
-
-  audio: {
-    ambient: 'my-ambient.mp3',       // place in /public/assets/audio/
-    stinger: 'my-open.mp3',
-  },
-
-  particles: {
-    enabled: true,
-    color:   '#4ade80',
-    count:   30,
-    speed:   0.3,
-  },
-
-  implemented: true,
+  ember: { ... },
+  frost: { ... },
 };
 ```
+Switching themes in the UI dynamically updates uniforms across the vortex, runes, energy ring, aurora sky, water, crystals, and particles in real-time.
 
-2. Register it in `/src/themes/index.ts`:
-
-```typescript
-import { MY_THEME } from './my-theme';
-export const THEMES: PortalTheme[] = [
-  WORMHOLE_THEME,
-  GLASS_SHATTER_THEME,
-  CUSTOM_360_THEME,
-  MY_THEME,           // ← add here
-  ...
-];
-```
-
-3. Optionally add a custom GLSL fragment shader in `/src/shaders/my-rim.glsl` and register it in `portal-rim-shader.ts`.
-
-**That's it.** No changes to core logic required.
+### Adding External Audio Files
+The procedural audio engine in `src/audio/engine.js` creates all sound synthesis internally. If you wish to supplement it with external `.mp3` or `.ogg` soundscapes:
+1. Place your audio files in `public/assets/audio/`.
+2. Use the Web Audio API `fetch()` + `ctx.decodeAudioData()` pattern and connect the resulting `AudioBufferSourceNode` to `this.realWorldGain` or `this.twilightGain`.
 
 ---
 
-## 🏗️ Architecture
+## ✦ Technical Implementation Notes
 
-```
-src/
-├── main.ts                      Entry point, registers components
-├── aframe.d.ts                  TypeScript ambient declarations for AFRAME global
-├── components/
-│   ├── portal-core.ts           ★ Core stencil portal (occlusion + interior + rim)
-│   ├── hit-test-placement.ts    WebXR hit-test → tap-to-place
-│   ├── portal-rim-shader.ts     ShaderMaterial factory for all rim effects
-│   ├── portal-transition.ts     Open/close animation state machine
-│   ├── portal-theme-manager.ts  Scene-level multi-portal coordinator
-│   ├── portal-audio.ts          Web Audio API HRTF spatial sound
-│   ├── portal-ui.ts             HTML overlay + in-scene 3D menu
-│   └── lighting-estimation.ts   WebXR XRLightProbe → rim tint color
-├── shaders/
-│   ├── common.glsl              Shared noise/fresnel/voronoi utilities
-│   ├── wormhole-rim.glsl        Swirling plasma energy ring
-│   ├── glass-shatter.glsl       Voronoi crack dissolve
-│   ├── glow-rim.glsl            Soft gaussian rim (360 photo)
-│   ├── nature-rim.glsl          Organic torn-edge (Nature Rift)
-│   ├── scifi-rim.glsl           Hologram segments (Sci-Fi Stargate)
-│   └── elemental-fire.glsl      Turbulent flame tongues (Elemental Fire)
-│   └── rim-vertex.ts            Shared vertex shader string
-├── themes/
-│   ├── index.ts                 PortalTheme interface + registry
-│   ├── wormhole.ts              ✅ Fully implemented
-│   ├── glass-shatter.ts         ✅ Fully implemented
-│   ├── custom-360.ts            ✅ Fully implemented
-│   ├── nature-rift.ts           ✅ Fully implemented
-│   ├── elemental-fire.ts        ✅ Fully implemented (fire shader)
-│   └── scifi-stargate.ts        ✅ Fully implemented
-└── utils/
-    ├── render-order.ts          Constants + stencil ID pool
-    ├── device-detect.ts         WebXR capability detection
-    └── persistence.ts           localStorage save/restore
-```
+### Why Post-Processing is Mode-Specific
+Standard Three.js `EffectComposer` creates its own offscreen render targets. In WebXR `immersive-ar` sessions, the underlying ARCore / WebXR platform manages the framebuffer and requires drawing directly to `renderer.xr.getBinding()`. Attempting to route full-screen post-processing through standard `EffectComposer` in ARCore causes blank screens, alpha-blending corruption, or crashes on mobile GPUs.
 
-### The Stencil Occlusion Trick
-
-The portal mechanic relies on the WebGL stencil buffer:
-
-```
-Frame rendering order:
-
-renderOrder=0  Occlusion Mesh
-               • CircleGeometry at portal position
-               • colorWrite: false  → invisible (no color output)
-               • stencilWrite: true → stamps stencil ref = portalId
-               • depthWrite: true   → occludes objects behind the portal
-               Result: a silent "stamp" marking the portal area in stencil
-
-renderOrder=1  Interior Sphere
-               • Large sphere (r=100m) centered at camera
-               • stencilFunc: EQUAL, ref = portalId
-               • Only renders where stencil = this portal
-               Result: virtual world visible ONLY through the portal hole
-
-renderOrder=2  Rim Shader
-               • Torus at portal edge
-               • AdditiveBlending → glows over everything
-               • ShaderMaterial with animated GLSL
-               Result: the glowing animated edge effect
-```
+To provide visual fidelity without stability risks:
+- In **ARCore AR Mode**: Glow and bloom are achieved through emissive materials, additive blending halo sprites, and custom GLSL fresnel rim shaders.
+- In **Preview and Camera Mode**: The full `PostProcessingManager` is activated, applying real multi-pass `UnrealBloomPass`, chromatic aberration radial distortion, and subtle film grain.
 
 ---
 
-## 🔧 Configuration
-
-### Audio
-
-Place audio files in `/public/assets/audio/`. The app silently skips missing files.
-
-Recommended format: `.mp3` (widest mobile support), 44100Hz, stereo for stingers, mono for ambient loops.
-
-### Performance Tuning
-
-In `portal-core.ts`, adjust these for lower-end devices:
-- `THREE.CircleGeometry(radius, 64)` — reduce segments (32 for low-end)
-- `THREE.SphereGeometry(100, 32, 16)` — reduce subdivisions (16, 8)
-- `particles.count` in theme configs — reduce from 40 to 15
-- `fbm()` in shaders — reduce octave count from 5 to 3
-
-### Multi-Portal
-
-Up to 8 simultaneous portals (stencil buffer limit). Each gets a unique stencil reference (1–8) so they don't interfere. Allocated/freed via `allocatePortalId()` / `freePortalId()` in `render-order.ts`.
-
----
-
-## 📄 License
-
-MIT — feel free to use in personal and commercial projects. Attribution appreciated.
-
----
-
-*Built with [A-Frame](https://aframe.io), [Three.js](https://threejs.org), and [Vite](https://vitejs.dev)*
+## ✦ License
+Created as part of the advanced WebXR AR Portal Experience. Distributed under the MIT License.
