@@ -1,255 +1,87 @@
-# Twilight Portal — Production WebXR AR Experience & Bioluminescent Realm
+# Dream Gate — WebXR AR Experience (Shadow Slave)
 
-A production-grade, immersive WebXR Augmented Reality portal experience built with Three.js, Vite, and the Web Audio API. A glowing portal opens in the user's real room, allowing them to place it on the floor or wall, watch it open with cinematic particle and shockwave sequences, and physically walk through into an infinite bioluminescent twilight world.
+An atmospheric WebXR Augmented Reality portal experience based on the **Dream Gates** (waking world -> Dream Realm) from the web novel *Shadow Slave*. A razor-clean vertical slash opens through the user's physical room, revealing the cold, desolate expanse of the Dream Realm.
 
----
-
-## ✦ Core Features & Highlights
-
-- **Multi-Platform Support**:
-  - **Android Chrome (ARCore)**: Full WebXR `immersive-ar` session with `hit-test`, `dom-overlay` (glassmorphism UI), `local-floor`, and `light-estimation`.
-  - **iOS Safari & Unsupported Browsers**: Robust **Camera Mode Fallback** utilizing `getUserMedia` rear camera stream as the physical background, DeviceOrientation gyro tracking (with iOS 13+ permission request flow), and touch-drag rotation.
-  - **Desktop 3D Preview**: Full interactive orbit preview mode allowing instant testing on any desktop computer without needing a mobile device.
-  - **Automatic Capability Detection**: Auto-detects device capabilities via `navigator.xr.isSessionSupported('immersive-ar')` and displays the appropriate launch console buttons ("Enter AR", "Open Camera Mode", or "3D Preview").
-
-- **Procedural Spatial Audio Engine (Web Audio API)**:
-  - 100% procedural synthesis with zero copyrighted or external audio dependencies.
-  - Single `AudioContext` created and unlocked on the first user interaction.
-  - **Layer 1**: Evolving ambient pad drone (detuned triangle/sine oscillators with slow LFO resonant low-pass filter sweeps).
-  - **Layer 2**: 3D spatialized portal core hum with HRTF `PannerNode`, pitch-shifting and intensifying as the user approaches the portal.
-  - **Layer 3**: One-shots (scan blip, placement sub punch whoosh, opening swell, crossing "whoomp" with reverb bloom, and UI feedback clicks).
-  - **Layer 4**: Twilight realm ambience (filtered pink noise wind, ethereal crickets, and pentatonic glass bell chimes).
-  - **Real-Time AnalyserNode**: Bass (20–150Hz), mid, and treble (2k–12kHz) metrics directly driving portal energy pulse, crystal luminescence, and spore sparkle.
-  - Dynamic cross-fading: entering the portal muffles the real world and opens up a wide cavernous reverb soundscape.
-
-- **43 Visual Effects Across 6 Modular Subsystems**:
-  - **Group A (Portal Core)**: Domain-warped FBM swirl vortex with chromatic aberration & fresnel, glowing energy torus ring with electric arcs, orbiting runic glyphs with trails, gravity-lens ripple, branching ground lightning tendrils, cinematic pinpoint/shockwave/spark opening sequence, and gravitational implosion closing sequence.
-  - **Group B (Particles)**: Logarithmic spiral spark stream into the vortex, 2,800+ bioluminescent spores with sine-wave twinkle and portal gravity, 60 wandering fireflies avoiding the camera, rising thermal embers & ash with turbulence, dust motes inside god-ray cones, instanced petal/leaf vortex swirl, interactive tap bursts, and camera motion ribbon trail.
-  - **Group C (Light & Atmosphere)**: Stacked volumetric god rays, floor glow decal with grounding contact shadow, breathing PointLight, low volumetric billboard fog with scrolling noise, proximity color grading, anamorphic lens flare streaks, water caustics, and real-world light estimation tinting.
-  - **Group D (The Twilight World)**: Aurora sky dome with scrolling ribbons and shooting stars, instanced glowing mushroom groves with traveling wave pulses, translucent floating jellyfish with swaying tentacles, reflective water plane with interactive tap ripple propagation, giant faceted crystals with audio glow, multi-depth parallax mist, swaying bioluminescent grass lighting up near the camera, and glowing celestial moon with halo.
-  - **Group E (Interaction & Reactive)**: Crossing-through transition (screen flash, radial blur, FOV punch, haptic vibration, particle burst), proximity speed & brightness reactivity, bass/treble audio visual reactivity, touch gestures (pinch-to-scale, two-finger twist rotate, long-press shockwave), time-of-day dusk-to-night slider, and 3 one-tap theme presets (Twilight, Ember, Frost).
-  - **Group F (UI & Screen Effects)**: Glassmorphism HUD within DOM overlay, animated particle-text splash canvas, scanning reticle with rotating ticks and lock snap, high-res screenshot capture with watermark banner and shutter flash, and slide-up effects drawer.
-
-- **Adaptive Performance & Quality Engine**:
-  - Real-time rolling FPS counter with auto-downgrade below 45 FPS to maintain a target 60 FPS on mid-range devices.
-  - Quality tiers (**Low / Medium / High**) dynamically scaling particle count, shadow passes, and pixel ratio.
-  - Proper disposal of geometries, materials, and canvas textures to prevent WebGL memory leaks during repeated placement.
+- **Theme**: Dream Gate (*Shadow Slave*).
+- **Style**: Dark, cold, restrained, physical. No neon, no cyan/purple glow, no glass pills, no sci-fi HUD clichés.
+- **Palette**: Near-black (`#08080a`), ash grey (`#6a6b70`), bone white (`#dcd8cf`), one dull brass accent (`#967d4e`), and dried-blood red (`#6b1c1c`) used only in the Forgotten Shore world.
 
 ---
 
-## ✦ Architecture & Project Structure
+## ✦ Phase 2: The Dream Gate
 
-```
-AR PORTAL EXPERIENCE/
-├── public/
-│   ├── icons/                 # PWA icons (192px, 512px, maskable, favicon)
-│   ├── manifest.json          # Web App Manifest
-│   └── sw.js                  # PWA Service Worker for offline shell caching
-├── src/
-│   ├── audio/
-│   │   └── engine.js          # Procedural Web Audio engine & HRTF spatial audio
-│   ├── effects/
-│   │   ├── core/              # Group A: Vortex, Energy Ring, Runes, Lightning, Sequences
-│   │   ├── particles/         # Group B: Sparks, Spores, Fireflies, Embers, Petals, Ribbon
-│   │   ├── lighting/          # Group C: God Rays, Decal, PointLight, Fog, Flares, Caustics
-│   │   ├── postprocessing/    # Group F: Bloom, Aberration & Film Grain (Preview/Camera mode)
-│   │   └── effectsManager.js  # Central coordinator for life-cycle, rendering & quality
-│   ├── fallback/
-│   │   └── cameraMode.js      # iOS rear camera feed, DeviceOrientation gyro & desktop orbit
-│   ├── portal/
-│   │   ├── portal.js          # Master portal assembly & crossing plane detection
-│   │   ├── reticle.js         # Animated scanning reticle with rotating ticks
-│   │   └── shaders/           # GLSL shaders (vortex swirl, energy ring, etc.)
-│   ├── ui/
-│   │   └── uiManager.js       # Glassmorphism UI, particle splash title & effects drawer
-│   ├── utils/
-│   │   ├── quality.js         # Dynamic Quality Manager (FPS tracking & auto-downgrade)
-│   │   ├── screenshot.js      # High-res screenshot generator with watermark & flash
-│   │   └── textures.js        # Procedural canvas textures (glows, runes, sparks, flares)
-│   ├── world/                 # Group D: Aurora sky, mushrooms, jellyfish, water, crystals, grass
-│   └── main.js                # Application entry & WebGL/XR animation loop
-├── index.html                 # DOM structure, CSS tokens and PWA tags
-└── vite.config.js             # Vite configuration with GLSL shader support
-```
+1. **Shape & Edge**:
+   - **1:4 Razor-Clean Slash**: A tall, narrow vertical slash through the air (width `0.70m`, height `2.80m`), pointed at both ends, slanted with a subtle `2.8°` tilt.
+   - **Edge Sharpness**: Seeded noise on the outline at very low amplitude (`0.012`) so each placement varies slightly while maintaining a razor-clean blade cut rather than a jagged rip.
+   - **Hovering Base**: The bottom hovers `15cm` (`0.15m`) above the floor so light pours underneath onto the floor plane.
+   - **Edge Treatment**: A hairline bright line along the cut with a slow traveling highlight, plus a narrow screen-space lens warp bending the real room toward the cut (within ~10% of the gate width). No glow rings or thick outlines.
+   - **Recessed Parallax**: Inside the stencil-buffer window, 3 recessed depth layers create real motion parallax when the user moves around the phone.
+
+2. **Two Variants (Radiant vs Shadow)**:
+   - Toggleable via runtime config (`gateVariant`) or top-right HUD button (`RADIANT` / `SHADOW`).
+   - **A) Radiant (Changing Star)**:
+     - Interior depths feature a warm white to pale gold core (`#fdfbf7` to `#e8dfc8`), layered volumetric light fog, slow rays radiating from a vanishing point deep inside, and drifting motes. Desaturated gold with no cyan or purple.
+     - Light spill: A soft warm floor light pool, a thin bright light streak pouring under the hovering base, and a subtle vertical anamorphic streak.
+     - Real-camera exposure adaptation: Approaching the bright slit darkens the surrounding room feed and clips highlights.
+   - **B) Shadow (Dark type)**:
+     - Impenetrable black core (`#020203`) with faint depth.
+     - Inner layers counter-shift toward the viewer's position so the darkness follows the user's movement.
+     - The gate drinks in nearby light: the real room dims within `1.5m`, and dust motes drift toward the edge and vanish.
+     - Thin cold pale edge line and 3-5% slow breathing movement of the slit width.
 
 ---
 
-## ✦ Getting Started
+## ✦ Phase 3: Opening & Re-placement Sequence
 
-### 1. Prerequisites
-- Node.js (v18.0.0 or higher recommended)
-- Modern web browser (Google Chrome, Safari, or Edge)
+1. **Gate Manifestation**:
+   - **Step 1 (0.0s - 0.2s)**: A single pinprick appears at gate height (`1.55m`) with a faint rising audio tone (`triggerRisingTone`).
+   - **Step 2 (0.2s - 0.8s)**: A hairline vertical line draws outward from the center point, up and down, over ~0.6s while the room warps slightly around it.
+   - **Step 3 (0.8s - 2.0s)**: The slit parts sideways like a blade cut opening over ~1.2s. Light floods out (radiant) or darkness settles in (shadow), accompanied by a soft pressure ripple on the camera feed and a tonal swell (`triggerOpeningSwell`).
+   - **Step 4**: A bracketed editorial notification fades in: `[A Dream Gate has opened.]`.
+2. **Re-place Portal**:
+   - Tapping "Re-place Portal" closes the slit in reverse over ~0.8s (`openingProgress` 1 -> 0, then `lineProgress` 1 -> 0), repositions the gate in front of the user's current gaze, and reopens it.
 
-### 2. Local Development
+---
+
+## ✦ Phase 5: Threshold Traversal & Room Integration
+
+1. **Boundary Behavior**:
+   - **Radiant**: Slow light motes stream forward out of the slit and drift upward into the room; nearby surfaces flicker faintly warm.
+   - **Shadow**: Dust motes drift inward toward the cut and vanish at the edge (light-drinking effect).
+2. **Two-Way Crossing**:
+   - **Step Through & Step Out**: Both directions supported with matching reverse trajectory and FOV punch.
+   - **Shadow-Step Dissolve**: Black tendrils pulling to the center during threshold traversal (`#shadow-step-overlay`).
+   - **Gradual Return**: Room exposure and colors ease back to normal upon exiting the Dream Realm.
+
+---
+
+## ✦ Master Tuning Parameters (`src/config.ts`)
+
+| Parameter | Default | Range | Description |
+| :--- | :--- | :--- | :--- |
+| `slashHalfWidth` | `0.35` | `0.20 - 0.50` | Center half-width (1:4 ratio with height) |
+| `slashHalfHeight` | `1.40` | `1.00 - 1.80` | Half-height (2.8m total height) |
+| `gateTilt` | `2.8` | `2.0 - 4.0` | Slanted tilt angle in degrees |
+| `hoverElevation` | `0.15` | `0.05 - 0.30` | Hover elevation above floor in meters |
+| `edgeSharpnessNoise`| `0.012` | `0.005 - 0.030`| Low-amplitude seeded edge variation |
+| `edgeTravelingSpeed`| `1.6` | `0.5 - 3.5` | Traveling highlight speed along hairline cut |
+| `recedingLayers` | `3` | `2 - 4` | Number of recessed depth parallax layers |
+| `lensWarpStrength` | `0.012` | `0.004 - 0.030`| Screen-space lens warp bending room toward cut |
+| `lightPoolIntensity`| `0.35` | `0.10 - 0.60` | Floor light pool intensity |
+| `lightStreakIntensity`| `0.85` | `0.40 - 1.00` | Light streak intensity under hovering base |
+| `cameraExposureShift`| `0.35` | `0.10 - 0.60` | Camera feed darkening amount when approaching gate |
+
+---
+
+## ✦ Running & Testing Locally
+
 ```bash
 # Install dependencies
 npm install
 
-# Start Vite development server
+# Start local dev server (default port 3000)
 npm run dev
-```
 
-By default, Vite binds to `http://localhost:3000/`. You can also access it on your local network via your machine's IP address (e.g. `http://192.168.x.x:3000/`).
-
-### 3. Production Build
-```bash
 # Build production bundle
 npm run build
-
-# Preview production build locally
-npm run preview
 ```
-
----
-
-## ✦ Running on Mobile Devices
-
-WebXR and camera access require a **secure context (HTTPS)** or `localhost`.
-
-### A. Testing on Android Chrome (WebXR ARCore)
-1. **Via USB Debugging (Recommended & Free)**:
-   - Connect your Android phone to your computer via USB.
-   - Enable **Developer Options** and **USB Debugging** on the phone.
-   - Open Chrome on your desktop and navigate to `chrome://inspect/#devices`.
-   - Under **Port forwarding**, add port `3000` mapping to `localhost:3000`.
-   - On your phone's Chrome browser, open `http://localhost:3000/`.
-   - Chrome recognizes `localhost` as a secure context, enabling full WebXR `immersive-ar`!
-2. **Via Cloudflare Tunnel or ngrok (Over the Air)**:
-   - Run `npx ngrok http 3000` or `cloudflared tunnel --url http://localhost:3000`.
-   - Open the resulting `https://*.ngrok-free.app` URL on your Android device.
-
-### B. Testing on iPhone / iPad (iOS Safari)
-Apple iOS does not currently support the WebXR `immersive-ar` standard. The app automatically detects this and offers **Camera Mode**:
-1. Open the HTTPS URL (via ngrok, Cloudflare, or local HTTPS) in Safari.
-2. Tap **"Open Camera Mode"**.
-3. Tap **Allow** when prompted for camera access.
-4. When prompted for Device Motion & Orientation permissions, tap **Allow** to enable 360-degree gyro tracking.
-5. The portal will appear positioned directly in your room with the live camera feed behind it!
-
-### C. Desktop 3D Preview Mode
-1. Open `http://localhost:3000/` in any desktop browser.
-2. Click **"3D Desktop Preview"**.
-3. Use your mouse to click and drag to orbit around the portal, and use the mouse wheel to zoom in and out.
-4. Use the **⚡ Step Through** button to test entering and exiting the virtual realm.
-
----
-
-## ✦ Installing as a Progressive Web App (PWA)
-
-The application includes an offline service worker and Web App Manifest:
-- **Android**: Tap the menu (⋮) in Chrome and select **"Install app"** or **"Add to Home screen"**.
-- **iOS**: Tap the **Share** button in Safari and select **"Add to Home Screen"**.
-- Once installed, the app runs in full-screen standalone mode with translucent status bars and offline cached assets.
-
----
-
-## ✦ Customization Guide
-
-### Customizing Color Themes
-Theme palettes are configured in `src/effects/effectsManager.js`:
-```javascript
-this.themes = {
-  twilight: {
-    primary: { r: 27 / 255, g: 20 / 255, b: 100 / 255 },  // Indigo #1b1464
-    secondary: { r: 109 / 255, g: 40 / 255, b: 217 / 255 },// Violet #6d28d9
-    accent1: { r: 20 / 255, g: 241 / 255, b: 217 / 255 },  // Teal #14f1d9
-    accent2: { r: 255 / 255, g: 60 / 255, b: 172 / 255 },  // Magenta #ff3cac
-    highlight: { r: 232 / 255, g: 247 / 255, b: 255 / 255 },// Soft White #e8f7ff
-  },
-  ember: { ... },
-  frost: { ... },
-};
-```
-Switching themes in the UI dynamically updates uniforms across the vortex, runes, energy ring, aurora sky, water, crystals, and particles in real-time.
-
-### Adding External Audio Files
-The procedural audio engine in `src/audio/engine.js` creates all sound synthesis internally. If you wish to supplement it with external `.mp3` or `.ogg` soundscapes:
-1. Place your audio files in `public/assets/audio/`.
-2. Use the Web Audio API `fetch()` + `ctx.decodeAudioData()` pattern and connect the resulting `AudioBufferSourceNode` to `this.realWorldGain` or `this.twilightGain`.
-
----
-
-## ✦ Technical Implementation Notes
-
-### Why Post-Processing is Mode-Specific
-Standard Three.js `EffectComposer` creates its own offscreen render targets. In WebXR `immersive-ar` sessions, the underlying ARCore / WebXR platform manages the framebuffer and requires drawing directly to `renderer.xr.getBinding()`. Attempting to route full-screen post-processing through standard `EffectComposer` in ARCore causes blank screens, alpha-blending corruption, or crashes on mobile GPUs.
-
-To provide visual fidelity without stability risks:
-- In **ARCore AR Mode**: Glow and bloom are achieved through emissive materials, additive blending halo sprites, and custom GLSL fresnel rim shaders.
-- In **Preview and Camera Mode**: The full `PostProcessingManager` is activated, applying real multi-pass `UnrealBloomPass`, chromatic aberration radial distortion, and subtle film grain.
-
----
-
-## ✦ Portal Tuning Guide (`PORTAL_CONFIG`)
-
-All visual, physical, lighting, and audio parameters for the dimensional tear are centralized in `window.PORTAL_CONFIG` at the top of the `<script>` tag in `index.html`:
-
-```javascript
-window.PORTAL_CONFIG = {
-  // 1. Edge & Silhouette
-  edgeRoughness: 0.16,           // Amplitude of FBM noise displacement on the opening silhouette (0.05 - 0.35)
-  edgeNoiseSpeed: 0.22,          // Slow evolution speed of the torn boundary
-  charredWidth: 0.09,            // Thickness of the dark soot / charred band just inside the tear
-  emberColor: '#c85a28',         // Color of the hot ember glow flickering in cracks only
-  emberCrackFrequency: 26.0,     // Frequency of procedural ember fractures
-  emberFlickerSpeed: 3.8,        // Speed of the ember glow oscillation
-  recedingLayers: 3,             // Number of offset wall layers behind opening for soft depth thickness
-  recedingDepthSpacing: 0.055,   // Distance in meters between receding wall layers
-
-  // 2. Refraction & Heat Distortion
-  distortionStrength: 0.012,     // Strength of camera video screen-space heat ripple (0.004 = subtle, 0.03 = intense)
-  distortionFrequency: 10.0,     // Frequency of heat ripple noise waves
-  chromaticAberration: 0.015,    // Color separation (R/G/B offset) towards the portal rim
-
-  // 3. Real-Room Lighting Interaction
-  lightPoolIntensity: 0.42,      // Opacity of projected floor light decal in front of portal
-  lightPoolRadius: 2.1,          // Forward reach of the floor light pool in meters
-  lightPoolColor: '#a88548',     // Floor decal light pool tint (muted aged brass / warm ember)
-  lightPoolFlickerSpeed: 1.8,    // Subtle breathing flicker rate of floor decal
-  colorGradeStrength: 0.32,      // Proximity camera feed shift towards portal accent (0.0 - 0.7)
-  vignetteStrength: 0.35,        // Edge darkening vignette intensity
-  filmGrainStrength: 0.045,      // Sensor grain strength unifying video and virtual layers
-
-  // 4. The Other World
-  fogDensity: 0.082,             // FogExp2 density of the interior realm
-  fogColor: '#09090b',           // Horizon fog color of the other world
-  fogLayers: 3,                  // Number of scrolling volumetric mist planes
-  fogScrollSpeed: 0.016,         // Scrolling speed of volumetric mist planes
-  parallaxLayers: 3,             // 3 depth silhouette layers (near basalt, mid ruins, far megaliths)
-  interiorParticleCount: 360,    // Drifting dust / spore motes inside realm
-  movingLightSpeed: 0.4,         // Orbiting speed of the dim interior highlight source
-  bioluminescencePulseSpeed: 1.2,// Pulse rate of sparse lichen / crystal accents
-  accentColor: '#b89758',        // Restrained aged brass accent color
-
-  // 5. Boundary Crossing Particles
-  crossingParticleCount: 40,     // Particles that drift OUT of the portal into the real room
-  crossingDriftSpeed: 0.22,      // Forward speed (m/s) into the user's physical space
-  fallingEmberCount: 20,         // Sparks along the torn edge falling under gravity
-
-  // 6. Step-Through Transition
-  transitionDuration: 1500,      // Duration of camera traversal in ms
-  fovPunchAmount: 10.0,          // Brief FOV expansion during traversal (degrees)
-
-  // 7. Spatial Audio
-  portalHumVolume: 0.22,         // Spatialized ambient hum volume (0.0 - 1.0)
-  pannerRefDistance: 1.2,        // Distance in meters for max volume
-  pannerMaxDistance: 10.0,       // Distance at which sound drops off
-
-  // 8. Quality Tier & Performance
-  qualityTier: 'high',           // 'high' | 'medium' | 'low'
-  autoDowngradeThreshold: 28     // FPS threshold below which quality automatically steps down
-};
-```
-
-### Main Parameters Explained
-- **`edgeRoughness`**: Controls how violently the portal boundary is torn. Higher values create more jagged, fractured fissures; lower values produce a smoother, calmer opening.
-- **`distortionStrength`**: Sets the screen-space ripple intensity sampling the rear camera video. Keep below `0.02` for realistic heat haze; values above `0.035` create heavy gravitational lensing.
-- **`lightPoolIntensity` & `lightPoolColor`**: Adjusts the ambient light thrown from the portal onto the user's floor. Matches the interior realm's warm aged-brass palette.
-- **`colorGradeStrength`**: How strongly the real camera feed shifts towards the portal's desaturated warm amber tone as the user gets within 2.5 meters.
-- **`crossingParticleCount`**: Number of embers and spores that drift forward through the tear into the physical room, fading as they travel.
-- **`qualityTier`**: `'high'` (full refraction, grain, 360+ particles, 3 fog layers), `'medium'` (simplified refraction, 200 particles), or `'low'` (no refraction, 120 particles, 1 fog plane, 1x DPR). Automatically steps down if frame rate falls below `autoDowngradeThreshold` (default 28 FPS).
-
----
-
-## ✦ License
-Created as part of the advanced WebXR AR Portal Experience. Distributed under the MIT License.

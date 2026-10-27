@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0b0c" />
   <meta name="color-scheme" content="dark" />
   <title>Threshold // Physical Tear AR Portal</title>
@@ -10,7 +12,9 @@
   <!-- Typography: Space Grotesk (Editorial Headers) & JetBrains Mono (Telemetry/Readouts) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+    rel="stylesheet" />
 
   <!-- Three.js pinned from CDN (Global window.THREE for 100% resilient mobile compatibility) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -18,19 +22,24 @@
 
   <style>
     :root {
-      --bg: #0b0b0c;
-      --bg-panel: rgba(15, 15, 17, 0.94);
-      --bg-btn: #131316;
+      --bg: #08080a;
+      --bg-panel: rgba(12, 12, 14, 0.94);
+      --bg-btn: #121215;
       --bg-btn-hover: #1c1c20;
-      --text: #e5e2dc;
-      --text-muted: #787672;
-      --text-faint: #444240;
-      --border: rgba(229, 226, 220, 0.12);
-      --border-strong: rgba(229, 226, 220, 0.28);
-      --brass: #b89758;
-      --brass-dim: rgba(184, 151, 88, 0.2);
-      --brass-hover: #cfab68;
-      --alert-crimson: #a83d3b;
+      --text: #dcd8cf;
+      /* Bone white */
+      --text-muted: #6a6b70;
+      /* Ash grey */
+      --text-faint: #3d3e42;
+      --border: rgba(220, 216, 207, 0.12);
+      --border-strong: rgba(220, 216, 207, 0.26);
+      --brass: #967d4e;
+      /* Dull brass accent */
+      --brass-dim: rgba(150, 125, 78, 0.18);
+      --brass-hover: #b89758;
+      --blood-red: #6b1c1c;
+      /* Dried-blood red (Forgotten Shore only) */
+      --alert-crimson: #6b1c1c;
 
       --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
       --font-sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -45,7 +54,8 @@
       -webkit-user-select: none;
     }
 
-    html, body {
+    html,
+    body {
       width: 100%;
       height: 100%;
       height: 100dvh;
@@ -108,6 +118,49 @@
       transition: none;
     }
 
+    /* System Notification Banner (Phase 3 & Phase 6) */
+    #system-notification {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 95;
+      pointer-events: none;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: rgba(8, 8, 10, 0.88);
+      border: 1px solid var(--border);
+      padding: 10px 22px;
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      white-space: nowrap;
+    }
+
+    #system-notification.visible {
+      opacity: 1;
+    }
+
+    /* Shadow-Step Transition Dissolve (Phase 5) */
+    #shadow-step-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 85;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, rgba(2, 2, 3, 0.98) 0%, rgba(8, 8, 10, 1.0) 100%);
+      opacity: 0;
+      transform: scale(1.15);
+      transition: opacity 0.45s ease, transform 0.65s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    #shadow-step-overlay.active {
+      opacity: 1;
+      transform: scale(1.0);
+    }
+
     /* Primary HUD Shell */
     #ui-hud {
       position: fixed;
@@ -119,11 +172,15 @@
       justify-content: space-between;
       padding: max(16px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
       opacity: 0;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.6s ease;
     }
 
     #ui-hud.visible {
       opacity: 1;
+    }
+
+    #ui-hud.idle-dim {
+      opacity: 0.20;
     }
 
     /* Header Bar */
@@ -135,53 +192,63 @@
       width: 100%;
     }
 
-    /* Monospace Status Readout: Editorial & Unboxed */
+    /* Single Column Monospace Status Readout (Non-wrapping on narrow screens) */
     .telemetry-block {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      font-family: var(--font-mono);
+      gap: 2px;
+      width: fit-content;
+      max-width: 150px;
+      pointer-events: auto;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .telemetry-gate {
+      font-family: var(--font-sans);
       font-size: 11px;
-      line-height: 1.45;
-      color: var(--text-muted);
-      letter-spacing: 0.04em;
-    }
-
-    .telemetry-line {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .telemetry-title {
       font-weight: 600;
-      color: var(--text);
       letter-spacing: 0.12em;
-      text-transform: uppercase;
-      font-size: 11px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .telemetry-tag {
-      color: var(--brass);
-    }
-
-    .telemetry-val {
       color: var(--text);
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
     }
 
-    .telemetry-val.accent {
+    .telemetry-status {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
       color: var(--brass);
+      text-transform: uppercase;
+      line-height: 1.2;
     }
 
-    .telemetry-val.warn {
-      color: #e0984c;
+    .telemetry-fps {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      line-height: 1.2;
     }
 
-    .telemetry-val.error {
-      color: var(--alert-crimson);
+    .debug-drawer {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .debug-item {
+      display: flex;
+      gap: 6px;
+      align-items: center;
     }
 
     /* Top Action Buttons */
@@ -516,6 +583,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Fullscreen Rear Camera Video -->
@@ -527,6 +595,8 @@
   <!-- Global Vignette & Camera Grain Texture Overlay -->
   <div id="film-overlay"></div>
   <div id="screen-flash"></div>
+  <div id="shadow-step-overlay"></div>
+  <div id="system-notification"></div>
 
   <!-- Error & Diagnostic Notification Banner -->
   <div id="error-drawer">
@@ -550,38 +620,40 @@
   <!-- Start / Enter Screen -->
   <div id="start-overlay">
     <div class="brand-section">
-      <div class="kicker">Threshold Project // Physical Tear</div>
-      <h1 class="headline">Dimensional<br/>Rift</h1>
+      <div class="kicker">SHADOW SLAVE // DREAM REALM</div>
+      <h1 class="headline">Dream<br />Gate</h1>
       <p class="description">
-        Generates an irregular, torn physical rift in the room with charred boundaries, heat-haze refraction, volumetric fog, and atmospheric silhouettes receding through stencil aperture geometry.
+        A razor-clean vertical slash between the waking world and the Dream Realm. Light floods out, or darkness drinks
+        it in.
       </p>
 
       <div class="spec-matrix">
         <div class="spec-row">
-          <span class="spec-name">Aperture Geometry</span>
-          <span class="spec-status ready" id="spec-webgl">FBM Torn Silhouette</span>
+          <span class="spec-name">Slash Cut</span>
+          <span class="spec-status ready" id="spec-webgl">1:4 Razor Aperture</span>
         </div>
         <div class="spec-row">
-          <span class="spec-name">Boundary FX</span>
-          <span class="spec-status" id="spec-camera">Heat Ripple & Embers</span>
+          <span class="spec-name">Gate Type</span>
+          <span class="spec-status" id="spec-camera">Radiant / Shadow</span>
         </div>
         <div class="spec-row">
-          <span class="spec-name">Room Light Decal</span>
-          <span class="spec-status" id="spec-sensors">Floor Pool & Grade Shift</span>
+          <span class="spec-name">Spill & Warp</span>
+          <span class="spec-status" id="spec-sensors">Floor Pool & Lens Warp</span>
         </div>
         <div class="spec-row">
           <span class="spec-name">Audio Engine</span>
-          <span class="spec-status" id="spec-audio">HRTF Panner Synth</span>
+          <span class="spec-status" id="spec-audio">HRTF Panner Bed</span>
         </div>
       </div>
     </div>
 
     <div class="start-actions">
       <button id="btn-start-ar" class="btn btn-brass btn-large">
-        Open Dimensional Rift
+        Open Dream Gate
       </button>
       <div class="context-notice" id="security-notice">
-        Note: Camera feed and motion sensors require a secure context (HTTPS or localhost). iOS Safari requires user gesture for permissions.
+        Note: Camera feed and motion sensors require a secure context (HTTPS or localhost). iOS Safari requires user
+        gesture for permissions.
       </div>
     </div>
   </div>
@@ -590,40 +662,33 @@
   <div id="ui-hud">
     <!-- Header: Editorial Plain Monospace Status Stack -->
     <div class="hud-header">
-      <div class="telemetry-block">
-        <div class="telemetry-title">
-          <span>PORTAL // PHYSICAL.TEAR</span>
-          <span class="telemetry-tag" id="hud-realm-badge">[EXTERIOR]</span>
-        </div>
-        <div class="telemetry-line">
-          <span>TIER:</span>
-          <span class="telemetry-val accent" id="tier-val">HIGH [AUTO]</span>
-          <span style="opacity:0.3;">/</span>
-          <span>FPS:</span>
-          <span class="telemetry-val accent" id="fps-val">--</span>
-        </div>
-        <div class="telemetry-line">
-          <span>CAM:</span>
-          <span class="telemetry-val" id="hud-cam">STANDBY</span>
-          <span style="opacity:0.3;">/</span>
-          <span>MOTION:</span>
-          <span class="telemetry-val" id="hud-motion">STANDBY</span>
-        </div>
-        <div class="telemetry-line">
-          <span>COORDS:</span>
-          <span class="telemetry-val" id="hud-coords">X: 0.00 Y: 0.00 Z: 2.00</span>
+      <div class="telemetry-block" id="hud-telemetry" title="Long press to toggle debug details">
+        <div class="telemetry-gate" id="hud-gate-name">FORGOTTEN SHORE</div>
+        <div class="telemetry-status" id="hud-status-line">[EXTERIOR]</div>
+        <div class="telemetry-fps" id="fps-val">-- FPS</div>
+        <div id="debug-drawer" class="debug-drawer" style="display: none;">
+          <div class="debug-item"><span id="tier-val">TIER: HIGH [AUTO]</span></div>
+          <div class="debug-item"><span id="hud-cam">CAM: STANDBY</span> | <span id="hud-motion">MOTION: STANDBY</span>
+          </div>
+          <div class="debug-item" id="hud-coords">X: 0.00 Y: 0.00 Z: 2.00</div>
         </div>
       </div>
 
       <!-- Top Right Actions -->
       <div class="top-controls">
+        <button id="btn-variant-toggle" class="btn" title="Toggle Dream Gate Variant (Radiant / Shadow)">
+          <span id="variant-label">RADIANT</span>
+        </button>
+
         <button id="btn-audio-toggle" class="btn btn-icon" title="Toggle Spatial Audio" aria-label="Toggle Audio">
-          <svg id="svg-audio-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <svg id="svg-audio-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.6">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <line x1="23" y1="9" x2="17" y2="15"></line>
             <line x1="17" y1="9" x2="23" y2="15"></line>
           </svg>
-          <svg id="svg-audio-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="display:none; color: var(--brass);">
+          <svg id="svg-audio-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.6" style="display:none; color: var(--brass);">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
@@ -632,7 +697,8 @@
 
         <button id="btn-fullscreen" class="btn btn-icon" title="Toggle Fullscreen" aria-label="Toggle Fullscreen">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+            </path>
           </svg>
         </button>
       </div>
@@ -654,7 +720,8 @@
         <!-- Horizontal Scale Slider (0.5x to 2.0x) -->
         <div class="scale-dock">
           <span class="scale-label">Scale // <span id="scale-num" class="scale-readout">1.00x</span></span>
-          <input type="range" id="scale-slider" class="scale-slider" min="0.5" max="2.0" step="0.05" value="1.0" aria-label="Portal Scale" />
+          <input type="range" id="scale-slider" class="scale-slider" min="0.5" max="2.0" step="0.05" value="1.0"
+            aria-label="Portal Scale" />
         </div>
       </div>
     </div>
@@ -666,61 +733,72 @@
       'use strict';
 
       /* =========================================================================
-       * MASTER CONFIGURATION OBJECT (Tune All Portal & Realm Parameters Here)
+       * MASTER CONFIGURATION OBJECT (Dream Gate: Waking World -> Dream Realm)
        * ========================================================================= */
       window.PORTAL_CONFIG = {
-        // --- 1. Portal Edge & Tear Geometry ---
-        edgeRoughness: 0.16,           // Amplitude of FBM noise displacement on the opening silhouette (0.05 - 0.35)
-        edgeNoiseSpeed: 0.22,          // Slow evolution speed of the torn boundary
-        charredWidth: 0.09,            // Thickness of the dark soot / charred band just inside the tear
-        emberColor: '#c85a28',         // Color of the hot ember glow flickering in cracks only
-        emberCrackFrequency: 26.0,     // Frequency of procedural ember fractures
-        emberFlickerSpeed: 3.8,        // Speed of the ember glow oscillation
-        recedingLayers: 3,             // Number of offset wall layers behind opening for soft depth thickness
-        recedingDepthSpacing: 0.055,   // Distance in meters between receding wall layers
+        // --- Gate Identity & Variant ---
+        gateName: 'FORGOTTEN SHORE',
+        gateVariant: 'radiant',          // 'radiant' (Changing Star) | 'shadow' (Dark type)
 
-        // --- 2. Refraction & Heat Distortion ---
-        distortionStrength: 0.012,     // Strength of camera video screen-space heat ripple (0.004 = subtle, 0.03 = intense)
-        distortionFrequency: 10.0,     // Frequency of heat ripple noise waves
-        chromaticAberration: 0.015,    // Color separation (R/G/B offset) towards the portal rim
+        // --- 1. Razor Slash Geometry (1:4 ratio, pointed at both ends, 15cm hover) ---
+        slashHalfWidth: 0.35,            // 0.70m total width at center
+        slashHalfHeight: 1.40,           // 2.80m total height (1:4 ratio)
+        gateTilt: 2.8,                   // 2.8 degrees slant tilt
+        hoverElevation: 0.15,            // Hovers 15cm above floor level
+        edgeSharpnessNoise: 0.012,       // Very low amplitude seeded noise (stays razor sharp)
+        edgeTravelingSpeed: 1.6,         // Slow traveling highlight rate along cut
 
-        // --- 3. Light Interaction with the Real Room ---
-        lightPoolIntensity: 0.42,      // Opacity of projected floor light decal in front of portal
-        lightPoolRadius: 2.1,          // Forward reach of the floor light pool in meters
-        lightPoolColor: '#a88548',     // Floor decal light pool tint (muted aged brass / warm ember)
-        lightPoolFlickerSpeed: 1.8,    // Subtle breathing flicker rate of floor decal
-        colorGradeStrength: 0.32,      // Proximity camera feed shift towards portal accent (0.0 - 0.7)
-        vignetteStrength: 0.35,        // Edge darkening vignette intensity
-        filmGrainStrength: 0.045,      // Sensor grain strength unifying video and virtual layers
+        // --- 2. Recessed Thickness & Depth Parallax ---
+        recedingLayers: 3,               // 3 recessed depth layers inside the cut
+        recedingDepthSpacing: 0.042,     // 4.2cm spacing between depth layers
+        shadowParallaxFactor: 0.18,      // Counter-shift factor in shadow variant
 
-        // --- 4. The Other World ---
-        fogDensity: 0.082,             // FogExp2 density of the interior realm
-        fogColor: '#09090b',           // Horizon fog color of the other world
-        fogLayers: 3,                  // Number of scrolling volumetric mist planes
-        fogScrollSpeed: 0.016,         // Scrolling speed of volumetric mist planes
-        parallaxLayers: 3,             // 3 depth silhouette layers (near basalt, mid ruins, far megaliths)
-        interiorParticleCount: 360,    // Drifting dust / spore motes inside realm
-        movingLightSpeed: 0.4,         // Orbiting speed of the dim interior highlight source
-        bioluminescencePulseSpeed: 1.2,// Pulse rate of sparse lichen / crystal accents
-        accentColor: '#b89758',        // Restrained aged brass accent color
+        // --- 3. Screen-space Lens Warp (Bends room slightly toward cut within ~10% width) ---
+        lensWarpStrength: 0.014,         // Subtle bend of real room toward the cut
+        lensWarpWidth: 0.08,             // 8-10% of width
 
-        // --- 5. Boundary Crossing Particles ---
-        crossingParticleCount: 40,     // Particles that drift OUT of the portal into the real room
-        crossingDriftSpeed: 0.22,      // Forward speed (m/s) into the user's physical space
-        fallingEmberCount: 20,         // Sparks along the torn edge falling under gravity
+        // --- 4. Light Spill & Floor Decal ---
+        lightPoolIntensity: 0.45,        // Soft warm floor light pool
+        lightPoolRadius: 2.4,            // Floor projection reach in meters
+        lightStreakIntensity: 0.65,      // Thin bright light streak pouring under base
+        verticalStreakIntensity: 0.35,   // Subtle vertical anamorphic highlight streak
+        cameraExposureShift: 0.38,       // Camera feed exposure darkening on proximity
 
-        // --- 6. Step-Through Transition ---
-        transitionDuration: 1500,      // Duration of camera traversal in ms
-        fovPunchAmount: 10.0,          // Brief FOV expansion during traversal (degrees)
+        // --- 5. Particles & Motes (Clamped & Soft-Falloff) ---
+        interiorParticleCount: 240,      // Under 300 on high tier
+        crossingParticleCount: 32,       // Slow light motes streaming upward or dust pulled in
+        particleMinSize: 2.0,            // Min gl_PointSize in pixels
+        particleMaxSize: 18.0,           // Clamped max gl_PointSize in pixels
+        particleFadeDist: 0.8,           // Alpha fades to 0 below 0.8m from camera
 
-        // --- 7. Audio ---
-        portalHumVolume: 0.22,         // Spatialized ambient hum volume (0.0 - 1.0)
-        pannerRefDistance: 1.2,        // Distance in meters for max volume
-        pannerMaxDistance: 10.0,       // Distance at which sound drops off
+        // --- 6. Palette: Shadow Slave Theme ---
+        radiantCoreColor: '#f5ebd0',     // Luminous warm white / pale gold
+        shadowCoreColor: '#020203',      // Impenetrable void black
+        nearBlack: '#08080a',
+        ashGrey: '#6a6b70',
+        boneWhite: '#dcd8cf',
+        accentColor: '#967d4e',          // Dull brass
+        bloodRedAccent: '#6b1c1c',       // Dried-blood red (Forgotten Shore only)
 
-        // --- 8. Quality Tier & Performance ---
-        qualityTier: 'high',           // 'high' | 'medium' | 'low'
-        autoDowngradeThreshold: 28     // FPS threshold below which quality automatically steps down
+        // --- 7. Opening & Traversal Timings ---
+        openingPointDuration: 200,       // Pinprick point (0.2s)
+        drawingLineDuration: 600,        // Hairline vertical line draw (0.6s)
+        partingSlitDuration: 1200,       // Slit parts sideways like a blade cut (1.2s)
+        transitionDuration: 1800,        // 1.8 seconds with easing
+        fovPunchAmount: 8.0,             // Brief FOV push
+
+        // --- 8. Atmosphere & Audio ---
+        fogDensity: 0.075,
+        fogColor: '#08080a',
+        fogLayers: 3,
+        fogScrollSpeed: 0.014,
+        portalHumVolume: 0.22,
+        pannerRefDistance: 1.2,
+        pannerMaxDistance: 9.0,
+
+        // --- 9. Performance Tiers ---
+        qualityTier: 'high',
+        autoDowngradeThreshold: 28
       };
 
       const CONFIG = window.PORTAL_CONFIG;
@@ -760,7 +838,14 @@
         benchmarkStart: 0,
         benchmarkComplete: false,
         lowFpsCount: 0,
-        currentTier: CONFIG.qualityTier
+        currentTier: CONFIG.qualityTier,
+        // Dream Gate Variant & Opening Animation State (Phase 2 & Phase 3)
+        gateVariant: CONFIG.gateVariant || 'radiant',
+        openingPhase: 'idle', // 'idle' | 'opening' | 'open' | 'closing'
+        pointProgress: 0.0,
+        lineProgress: 0.0,
+        openingProgress: 0.0,
+        gateSeed: Math.random() * 100.0
       };
 
       // DOM Elements
@@ -770,6 +855,8 @@
         hud: document.getElementById('ui-hud'),
         filmOverlay: document.getElementById('film-overlay'),
         screenFlash: document.getElementById('screen-flash'),
+        shadowStepOverlay: document.getElementById('shadow-step-overlay'),
+        systemNotification: document.getElementById('system-notification'),
         startOverlay: document.getElementById('start-overlay'),
         errorDrawer: document.getElementById('error-drawer'),
         errorTitle: document.getElementById('error-title'),
@@ -779,11 +866,16 @@
         btnStartAR: document.getElementById('btn-start-ar'),
         btnReplace: document.getElementById('btn-replace'),
         btnStep: document.getElementById('btn-step'),
+        btnVariantToggle: document.getElementById('btn-variant-toggle'),
+        variantLabel: document.getElementById('variant-label'),
         scaleSlider: document.getElementById('scale-slider'),
         scaleNum: document.getElementById('scale-num'),
         fpsVal: document.getElementById('fps-val'),
         tierVal: document.getElementById('tier-val'),
-        hudRealmBadge: document.getElementById('hud-realm-badge'),
+        hudStatusLine: document.getElementById('hud-status-line'),
+        hudGateName: document.getElementById('hud-gate-name'),
+        hudTelemetry: document.getElementById('hud-telemetry'),
+        debugDrawer: document.getElementById('debug-drawer'),
         hudCam: document.getElementById('hud-cam'),
         hudMotion: document.getElementById('hud-motion'),
         hudCoords: document.getElementById('hud-coords'),
@@ -947,6 +1039,46 @@
           this.rumbleGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
         }
 
+        triggerRisingTone() {
+          if (!this.ctx || !this.isPlaying) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.6);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(0.08, now + 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.7);
+        }
+
+        triggerOpeningSwell() {
+          if (!this.ctx || !this.isPlaying) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.exponentialRampToValueAtTime(220, now + 0.8);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(0.18, now + 0.4);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 1.3);
+
+          if (this.rumbleGain) {
+            this.rumbleGain.gain.cancelScheduledValues(now);
+            this.rumbleGain.gain.setValueAtTime(0.25, now + 0.1);
+            this.rumbleGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+          }
+        }
+
         setRealmState(isInside) {
           if (!this.ctx || !this.lowpassFilter) return;
           const now = this.ctx.currentTime;
@@ -997,14 +1129,35 @@
           return v;
         }
 
-        // Calculates normalized distance to an irregular, torn physical rift
-        float calculateTornRiftDist(vec2 pos, float time, float roughness) {
-          vec2 p = pos - vec2(0.0, 1.15);
-          float baseDist = length(vec2(p.x / 0.52, p.y / 1.02));
-          float angle = atan(p.y, p.x);
-          float displacement = fbm(vec2(angle * 1.8, time * CONFIG.edgeNoiseSpeed)) * roughness +
-                               snoise(pos * 3.4 + vec2(0.0, time * 0.25)) * (roughness * 0.45);
-          return baseDist + displacement;
+        // Calculates normalized distance for a 1:4 razor-clean vertical blade slash through the air
+        // Center at y = 1.55, height = 2.80 (halfH = 1.40), width = 0.70 (halfW = 0.35)
+        // Bottom hovers 15cm above floor (y in [0.15, 2.95]). Pointed at both ends.
+        float calculateBladeSlashDist(vec2 pos, float openingProg, float lineProg, float seed) {
+          float centerY = 1.55;
+          float halfH = 1.40;
+          float halfW = 0.35;
+
+          float dy = pos.y - centerY;
+          float yNorm = dy / halfH;
+
+          // Outside drawn vertical cut line
+          float maxDrawnY = halfH * max(0.001, lineProg);
+          if (abs(dy) > maxDrawnY) {
+            return 999.0;
+          }
+
+          // Smooth taper to points at both ends
+          float yClamped = clamp(abs(yNorm), 0.0, 1.0);
+          float profile = (1.0 - yClamped * yClamped) * (1.0 - 0.15 * yClamped * yClamped);
+
+          // Seeded noise on the outline at very low amplitude (0.012)
+          float lowNoise = (snoise(vec2(pos.y * 5.4, seed)) - 0.5) * 0.012;
+
+          // Slit half-width given opening progress
+          float currentHalfW = max(0.0006, (halfW * profile + lowNoise) * max(0.0001, openingProg));
+
+          // Normalized horizontal distance: < 1.0 is inside slit, > 1.0 is outside
+          return abs(pos.x) / currentHalfW;
         }
       `;
 
@@ -1015,13 +1168,17 @@
       let videoTexture = null;
       let portalRootGroup;
       let portalApertureMask;
-      let portalTornEdgeMesh;
+      let portalEdgeMesh;
       let portalRefractionMesh;
-      let floorDecalMesh;
+      let recedingLayersGroup;
+      let floorLightStreakMesh;
+      let floorLightPoolMesh;
+      let anamorphicStreakMesh;
+      let bloomSpriteMesh;
       let otherWorldGroup;
+      let seaWaterMesh;
       let interiorParticles;
       let crossingParticles;
-      let fallingEmberParticles;
       let fogPlanesGroup;
       let parallaxSilhouettesGroup;
       let dimMovingLight;
@@ -1060,7 +1217,7 @@
           videoTexture.format = THREE.RGBAFormat;
         }
 
-        buildPhysicalTearWorld();
+        buildDreamGateWorld();
 
         window.addEventListener('resize', onResize);
         window.addEventListener('orientationchange', () => setTimeout(onResize, 120));
@@ -1100,23 +1257,29 @@
       }
 
       /* -------------------------------------------------------------
-       * 5. Procedural Physical Tear, Charred Borders, Refraction & Receding Depth
+       * 5. Procedural Dream Gate (Razor Slash, Depth Layers, Warp & Light Spill)
        * ----------------------------------------------------------- */
-      function buildPhysicalTearWorld() {
+      function buildDreamGateWorld() {
         portalRootGroup = new THREE.Group();
+        // 2-4 degree slant tilt (2.8 degrees)
+        portalRootGroup.rotation.z = THREE.MathUtils.degToRad(CONFIG.gateTilt);
+
         otherWorldGroup = new THREE.Group();
         scene.add(portalRootGroup);
         scene.add(otherWorldGroup);
 
-        // Plane geometry for torn boundary shaders
-        const riftPlaneGeo = new THREE.PlaneGeometry(1.65, 2.7, 72, 72);
+        // Plane geometry for razor slash shaders: 1.6m wide, 3.2m high
+        // Translated to center at (0, 1.55, 0) so the bottom hovers exactly 15cm (0.15m) above floor
+        const slashPlaneGeo = new THREE.PlaneGeometry(1.6, 3.2, 80, 80);
+        slashPlaneGeo.translate(0, 1.55, 0);
 
-        // --- A. APERTURE STENCIL MASK WITH DISCARDED TORN BOUNDARY ---
-        // Writes 1 to the stencil buffer ONLY inside the irregular torn silhouette
+        // --- A. APERTURE STENCIL MASK (RAZOR-CLEAN CUT) ---
+        // Writes 1 to the stencil buffer ONLY inside the 1:4 razor slash
         const maskShaderMaterial = new THREE.ShaderMaterial({
           uniforms: {
-            uTime: { value: 0 },
-            uRoughness: { value: CONFIG.edgeRoughness }
+            uOpeningProgress: { value: state.openingProgress },
+            uLineProgress: { value: state.lineProgress },
+            uSeed: { value: state.gateSeed }
           },
           vertexShader: `
             varying vec2 vUv;
@@ -1128,16 +1291,17 @@
             }
           `,
           fragmentShader: `
-            uniform float uTime;
-            uniform float uRoughness;
+            uniform float uOpeningProgress;
+            uniform float uLineProgress;
+            uniform float uSeed;
             varying vec2 vUv;
             varying vec3 vPos;
             ${GLSL_COMMON_NOISE}
 
             void main() {
-              float d = calculateTornRiftDist(vPos.xy, uTime, uRoughness);
+              float d = calculateBladeSlashDist(vPos.xy, uOpeningProgress, uLineProgress, uSeed);
               if (d > 1.0) {
-                discard; // Crucial: Discarded fragments do NOT update the stencil buffer!
+                discard; // Fragments outside the razor cut do not write stencil
               }
               gl_FragColor = vec4(0.0);
             }
@@ -1151,20 +1315,21 @@
           side: THREE.DoubleSide
         });
 
-        portalApertureMask = new THREE.Mesh(riftPlaneGeo, maskShaderMaterial);
+        portalApertureMask = new THREE.Mesh(slashPlaneGeo, maskShaderMaterial);
         portalApertureMask.position.set(0, 0, 0);
         portalRootGroup.add(portalApertureMask);
 
-        // --- B. CHARRED TORN RIM & FLICKERING EMBERS WITH RECEDING THICKNESS ---
-        // Renders charred rock, burning ember fractures, and receding interior wall layers
-        const tornEdgeMaterial = new THREE.ShaderMaterial({
+        // --- B. HAIRLINE BRIGHT CUT EDGE WITH SLOW TRAVELING HIGHLIGHT ---
+        // Razor-clean cut, no thick glow or border. Also handles pinprick and hairline line-draw in Phase 3.
+        const edgeShaderMaterial = new THREE.ShaderMaterial({
           uniforms: {
             uTime: { value: 0 },
-            uRoughness: { value: CONFIG.edgeRoughness },
-            uCharredWidth: { value: CONFIG.charredWidth },
-            uEmberColor: { value: new THREE.Color(CONFIG.emberColor) },
-            uAccentColor: { value: new THREE.Color(CONFIG.accentColor) },
-            uLayerDepth: { value: 0.0 }
+            uOpeningProgress: { value: state.openingProgress },
+            uLineProgress: { value: state.lineProgress },
+            uPointProgress: { value: state.pointProgress },
+            uVariant: { value: (state.gateVariant === 'shadow') ? 1.0 : 0.0 },
+            uSeed: { value: state.gateSeed },
+            uTravelingSpeed: { value: CONFIG.edgeTravelingSpeed }
           },
           vertexShader: `
             varying vec2 vUv;
@@ -1177,39 +1342,55 @@
           `,
           fragmentShader: `
             uniform float uTime;
-            uniform float uRoughness;
-            uniform float uCharredWidth;
-            uniform vec3 uEmberColor;
-            uniform vec3 uAccentColor;
-            uniform float uLayerDepth;
+            uniform float uOpeningProgress;
+            uniform float uLineProgress;
+            uniform float uPointProgress;
+            uniform float uVariant;
+            uniform float uSeed;
+            uniform float uTravelingSpeed;
             varying vec2 vUv;
             varying vec3 vPos;
             ${GLSL_COMMON_NOISE}
 
             void main() {
-              float d = calculateTornRiftDist(vPos.xy, uTime, uRoughness);
-
-              // Inside opening: transparent to reveal the other world
-              if (d < (1.0 - uCharredWidth)) {
-                discard;
+              // 1. Pinprick point phase (Phase 3, Step 1)
+              if (uLineProgress < 0.05 && uPointProgress > 0.0) {
+                float distCenter = length(vPos.xy - vec2(0.0, 1.55));
+                float pin = smoothstep(0.035 * uPointProgress, 0.0, distCenter);
+                if (pin < 0.01) discard;
+                vec3 pinCol = mix(vec3(0.99, 0.98, 0.95), vec3(0.18, 0.20, 0.22), uVariant);
+                gl_FragColor = vec4(pinCol, pin * 0.95);
+                return;
               }
 
-              // Charred boundary: soot black with hot ember cracks
-              float crack = snoise(vPos.xy * CONFIG.emberCrackFrequency + vec2(uTime * 0.5, -uTime * 0.3));
-              float emberFlicker = 0.5 + 0.5 * sin(uTime * CONFIG.emberFlickerSpeed + vPos.y * 12.0);
-              float inCrack = smoothstep(0.48, 0.78, crack) * emberFlicker;
+              // 2. Hairline vertical line draw phase (Phase 3, Step 2)
+              if (uOpeningProgress < 0.04 && uLineProgress > 0.0) {
+                float dy = abs(vPos.y - 1.55);
+                float maxDrawnY = 1.40 * uLineProgress;
+                if (dy > maxDrawnY) discard;
+                float lineThick = smoothstep(0.004, 0.0, abs(vPos.x));
+                if (lineThick < 0.01) discard;
+                vec3 lineCol = mix(vec3(0.99, 0.97, 0.92), vec3(0.55, 0.58, 0.62), uVariant);
+                gl_FragColor = vec4(lineCol, lineThick * 0.95);
+                return;
+              }
 
-              // Dark charred soot base with depth tinting
-              vec3 soot = mix(vec3(0.04, 0.04, 0.045), vec3(0.02, 0.02, 0.025), uLayerDepth);
-              vec3 emberTone = mix(soot, uEmberColor, inCrack * 0.9);
+              // 3. Slit Opened: Hairline bright line along cut
+              float d = calculateBladeSlashDist(vPos.xy, uOpeningProgress, uLineProgress, uSeed);
+              float edgeFactor = smoothstep(0.045, 0.0, abs(d - 1.0));
+              if (edgeFactor < 0.01) discard;
 
-              // Soft outer feathering over camera background to avoid aliasing lines
-              float outerAlpha = smoothstep(1.08, 0.99, d);
-              float innerAlpha = smoothstep((1.0 - uCharredWidth), (1.0 - uCharredWidth + 0.025), d);
-              float alpha = innerAlpha * outerAlpha;
+              // Slow traveling highlight along the hairline cut
+              float glint = pow(max(0.0, sin(vPos.y * 3.4 - uTime * uTravelingSpeed)), 16.0);
+              float pulse = 0.16 * sin(uTime * 1.5 + vPos.y * 2.2);
 
-              if (alpha < 0.01) discard;
-              gl_FragColor = vec4(emberTone, alpha);
+              // Radiant (warm white to pale gold core) vs Shadow (very thin cold pale edge line)
+              vec3 radiantEdge = mix(vec3(0.99, 0.98, 0.96), vec3(0.92, 0.88, 0.78), glint);
+              vec3 shadowEdge  = mix(vec3(0.50, 0.52, 0.55), vec3(0.80, 0.82, 0.85), glint * 0.7);
+              vec3 edgeCol = mix(radiantEdge, shadowEdge, uVariant);
+
+              float alpha = edgeFactor * clamp(0.75 + glint * 0.85 + pulse, 0.0, 1.0);
+              gl_FragColor = vec4(edgeCol, alpha);
             }
           `,
           transparent: true,
@@ -1217,33 +1398,103 @@
           side: THREE.DoubleSide
         });
 
-        // Front charred frame
-        portalTornEdgeMesh = new THREE.Mesh(riftPlaneGeo, tornEdgeMaterial);
-        portalTornEdgeMesh.position.set(0, 0, 0.005);
-        portalRootGroup.add(portalTornEdgeMesh);
+        portalEdgeMesh = new THREE.Mesh(slashPlaneGeo, edgeShaderMaterial);
+        portalEdgeMesh.position.set(0, 0, 0.004);
+        portalRootGroup.add(portalEdgeMesh);
 
-        // Receding thickness layers behind opening
-        for (let i = 1; i <= CONFIG.recedingLayers; i++) {
-          const depthMat = tornEdgeMaterial.clone();
-          depthMat.uniforms.uLayerDepth.value = i / CONFIG.recedingLayers;
-          const layerMesh = new THREE.Mesh(riftPlaneGeo, depthMat);
-          const zOffset = -i * CONFIG.recedingDepthSpacing;
-          const scaleShrink = 1.0 - (i * 0.035);
+        // --- C. RECESSED DEPTH LAYERS WITH REAL PARALLAX ---
+        // 3 depth layers inside cut (Radiant: volumetric light fog & rays; Shadow: counter-shifting impenetrable void)
+        recedingLayersGroup = new THREE.Group();
+        portalRootGroup.add(recedingLayersGroup);
+
+        const depthPlaneGeo = new THREE.PlaneGeometry(1.5, 3.1, 48, 48);
+        depthPlaneGeo.translate(0, 1.55, 0);
+
+        for (let i = 0; i < CONFIG.recedingLayers; i++) {
+          const depthLayerMat = new THREE.ShaderMaterial({
+            uniforms: {
+              uTime: { value: 0 },
+              uVariant: { value: (state.gateVariant === 'shadow') ? 1.0 : 0.0 },
+              uLayerIndex: { value: i },
+              uOpeningProgress: { value: state.openingProgress }
+            },
+            vertexShader: `
+              varying vec2 vUv;
+              varying vec3 vPos;
+              void main() {
+                vUv = uv;
+                vPos = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform float uTime;
+              uniform float uVariant;
+              uniform float uLayerIndex;
+              uniform float uOpeningProgress;
+              varying vec2 vUv;
+              varying vec3 vPos;
+              ${GLSL_COMMON_NOISE}
+
+              void main() {
+                // Vanishing point deep inside at (0, 1.55)
+                vec2 fromCenter = vPos.xy - vec2(0.0, 1.55);
+                float angle = atan(fromCenter.y, fromCenter.x);
+                float distCenter = length(fromCenter);
+
+                // Radiant: slow volumetric rays radiating from deep inside
+                float ray = sin(angle * 6.0 + uTime * 0.28 + uLayerIndex * 1.1) * 0.5 + 0.5;
+                ray = pow(ray, 2.0);
+
+                // Layered volumetric light fog
+                float fogN = fbm(vPos.xy * 2.2 + vec2(0.0, -uTime * 0.12 + uLayerIndex * 0.45));
+                float coreLum = smoothstep(1.35, 0.04, distCenter);
+
+                // Warm white to pale gold core
+                vec3 goldCore = mix(vec3(0.99, 0.98, 0.96), vec3(0.91, 0.87, 0.77), vUv.y * 0.5 + uLayerIndex * 0.16);
+                vec3 radiantCol = goldCore * (0.65 + ray * 0.35 + fogN * 0.25) * coreLum;
+                float radiantAlpha = (0.42 + 0.26 * ray + 0.2 * fogN) * coreLum * (1.0 - uLayerIndex * 0.18);
+
+                // Shadow: impenetrable black with very faint depth
+                vec3 shadowCol = mix(vec3(0.012, 0.012, 0.015), vec3(0.003, 0.003, 0.005), uLayerIndex * 0.4);
+                float shadowAlpha = 0.94 + 0.05 * (1.0 - coreLum);
+
+                vec3 finalCol = mix(radiantCol, shadowCol, uVariant);
+                float finalAlpha = mix(radiantAlpha, shadowAlpha, uVariant) * uOpeningProgress;
+
+                if (finalAlpha < 0.01) discard;
+                gl_FragColor = vec4(finalCol, finalAlpha);
+              }
+            `,
+            transparent: true,
+            depthWrite: false,
+            stencilWrite: true,
+            stencilRef: 1,
+            stencilFunc: THREE.EqualStencilFunc
+          });
+
+          const layerMesh = new THREE.Mesh(depthPlaneGeo, depthLayerMat);
+          const zOffset = -(i + 1) * CONFIG.recedingDepthSpacing;
+          const scaleShrink = 1.0 - ((i + 1) * 0.025);
           layerMesh.position.set(0, 0, zOffset);
           layerMesh.scale.set(scaleShrink, scaleShrink, 1.0);
-          portalRootGroup.add(layerMesh);
+          recedingLayersGroup.add(layerMesh);
         }
 
-        // --- C. LIVE CAMERA HEAT DISTORTION & CHROMATIC ABERRATION ---
-        const refractionGeo = new THREE.PlaneGeometry(2.0, 3.05, 48, 48);
+        // --- D. SCREEN-SPACE LENS WARP (BENDS REAL ROOM TOWARD THE CUT) ---
+        // Narrow refraction band roughly within 10% of the gate width
+        const refractionGeo = new THREE.PlaneGeometry(2.0, 3.4, 48, 48);
+        refractionGeo.translate(0, 1.55, 0);
+
         const refractionMaterial = new THREE.ShaderMaterial({
           uniforms: {
             uTime: { value: 0 },
             uVideoTexture: { value: videoTexture },
             uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-            uRoughness: { value: CONFIG.edgeRoughness },
-            uDistortionStrength: { value: CONFIG.distortionStrength },
-            uAberration: { value: CONFIG.chromaticAberration }
+            uOpeningProgress: { value: state.openingProgress },
+            uLineProgress: { value: state.lineProgress },
+            uSeed: { value: state.gateSeed },
+            uLensWarpStrength: { value: CONFIG.lensWarpStrength }
           },
           vertexShader: `
             varying vec2 vUv;
@@ -1258,39 +1509,35 @@
             uniform float uTime;
             uniform sampler2D uVideoTexture;
             uniform vec2 uResolution;
-            uniform float uRoughness;
-            uniform float uDistortionStrength;
-            uniform float uAberration;
+            uniform float uOpeningProgress;
+            uniform float uLineProgress;
+            uniform float uSeed;
+            uniform float uLensWarpStrength;
             varying vec2 vUv;
             varying vec3 vPos;
             ${GLSL_COMMON_NOISE}
 
             void main() {
-              float d = calculateTornRiftDist(vPos.xy, uTime, uRoughness);
+              if (uOpeningProgress < 0.02 && uLineProgress < 0.02) discard;
 
-              // Narrow refraction band outside the torn rim (1.0 to 1.28)
-              if (d < 1.0 || d > 1.28) {
+              float d = calculateBladeSlashDist(vPos.xy, uOpeningProgress, uLineProgress, uSeed);
+
+              // Narrow screen-space lens warp band within roughly 10% of gate width (1.0 to 1.12)
+              if (d < 1.0 || d > 1.12) {
                 discard;
               }
 
               vec2 screenUv = gl_FragCoord.xy / uResolution;
 
-              // Heat-haze ripple noise
-              vec2 ripple = vec2(
-                snoise(vPos.xy * CONFIG.distortionFrequency + vec2(uTime * 1.6, 0.0)),
-                snoise(vPos.xy * CONFIG.distortionFrequency + vec2(0.0, uTime * 1.6))
-              ) * uDistortionStrength;
+              // Warp real room slightly TOWARDS the razor cut
+              vec2 warpDir = vec2(-sign(vPos.x), 0.0);
+              float falloff = (1.12 - d) / 0.12;
+              falloff = smoothstep(0.0, 1.0, falloff);
 
-              // Falloff towards outer edge
-              float bandFalloff = smoothstep(1.0, 1.05, d) * smoothstep(1.28, 1.10, d);
-              ripple *= bandFalloff;
+              vec2 offset = warpDir * (uLensWarpStrength * falloff * 0.022);
+              vec4 warpedVideo = texture2D(uVideoTexture, screenUv + offset);
 
-              // Chromatic aberration (separate R/G/B samples)
-              float r = texture2D(uVideoTexture, screenUv + ripple * (1.0 + uAberration)).r;
-              float g = texture2D(uVideoTexture, screenUv + ripple).g;
-              float b = texture2D(uVideoTexture, screenUv + ripple * (1.0 - uAberration)).b;
-
-              gl_FragColor = vec4(r, g, b, bandFalloff * 0.75);
+              gl_FragColor = vec4(warpedVideo.rgb, falloff * 0.85);
             }
           `,
           transparent: true,
@@ -1298,16 +1545,62 @@
         });
 
         portalRefractionMesh = new THREE.Mesh(refractionGeo, refractionMaterial);
-        portalRefractionMesh.position.set(0, 0, 0.008);
+        portalRefractionMesh.position.set(0, 0, 0.007);
         portalRootGroup.add(portalRefractionMesh);
 
-        // --- D. FLOOR LIGHT POOL DECAL ---
-        // Casts soft tinted light from the portal onto the real room's floor plane
-        const floorDecalGeo = new THREE.PlaneGeometry(2.6, 3.2);
-        const floorDecalMaterial = new THREE.ShaderMaterial({
+        // --- E. LIGHT SPILL 1: HOVERED BASE LIGHT STREAK ---
+        // The bottom hovers 15cm above floor: light pours underneath onto the floor plane
+        const floorStreakGeo = new THREE.PlaneGeometry(0.85, 0.07);
+        const floorStreakMat = new THREE.ShaderMaterial({
           uniforms: {
             uTime: { value: 0 },
-            uColor: { value: new THREE.Color(CONFIG.lightPoolColor) },
+            uVariant: { value: (state.gateVariant === 'shadow') ? 1.0 : 0.0 },
+            uOpeningProgress: { value: state.openingProgress }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float uTime;
+            uniform float uVariant;
+            uniform float uOpeningProgress;
+            varying vec2 vUv;
+
+            void main() {
+              float d = length(vec2((vUv.x - 0.5) * 2.0, (vUv.y - 0.5) * 3.2));
+              float falloff = smoothstep(1.0, 0.0, d);
+              if (falloff < 0.01) discard;
+
+              float flicker = 0.94 + 0.06 * sin(uTime * 2.8);
+              vec3 radiantStreak = vec3(0.98, 0.92, 0.82);
+              vec3 shadowStreak = vec3(0.02, 0.02, 0.03);
+              vec3 col = mix(radiantStreak, shadowStreak, uVariant);
+              float alpha = falloff * flicker * uOpeningProgress * mix(0.90, 0.20, uVariant);
+
+              gl_FragColor = vec4(col, alpha);
+            }
+          `,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        floorLightStreakMesh = new THREE.Mesh(floorStreakGeo, floorStreakMat);
+        floorLightStreakMesh.rotation.x = -Math.PI / 2;
+        floorLightStreakMesh.position.set(0, 0.003, 0);
+        portalRootGroup.add(floorLightStreakMesh);
+
+        // --- F. LIGHT SPILL 2: SOFT WARM FLOOR POOL ---
+        const floorPoolGeo = new THREE.PlaneGeometry(2.4, 2.8);
+        const floorPoolMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uVariant: { value: (state.gateVariant === 'shadow') ? 1.0 : 0.0 },
+            uOpeningProgress: { value: state.openingProgress },
             uIntensity: { value: CONFIG.lightPoolIntensity }
           },
           vertexShader: `
@@ -1319,19 +1612,24 @@
           `,
           fragmentShader: `
             uniform float uTime;
-            uniform vec3 uColor;
+            uniform float uVariant;
+            uniform float uOpeningProgress;
             uniform float uIntensity;
             varying vec2 vUv;
 
             void main() {
-              // Projected ellipse extending forward (+Z) in front of the portal
-              vec2 p = vUv - vec2(0.5, 0.2);
-              float dist = length(vec2(p.x * 1.1, p.y * 0.65));
-              float flicker = 0.85 + 0.15 * (sin(uTime * CONFIG.lightPoolFlickerSpeed) * cos(uTime * 2.3));
-              float alpha = smoothstep(0.55, 0.02, dist) * uIntensity * flicker;
+              vec2 p = vUv - vec2(0.5, 0.22);
+              float dist = length(vec2(p.x * 1.15, p.y * 0.7));
+              float breathe = 0.96 + 0.04 * sin(uTime * 1.6);
+              float falloff = smoothstep(0.52, 0.02, dist);
+              if (falloff < 0.005) discard;
 
-              if (alpha < 0.005) discard;
-              gl_FragColor = vec4(uColor, alpha);
+              vec3 radiantPool = vec3(0.94, 0.89, 0.78);
+              vec3 shadowPool  = vec3(0.015, 0.015, 0.02);
+              vec3 col = mix(radiantPool, shadowPool, uVariant);
+              float alpha = falloff * uIntensity * breathe * uOpeningProgress * mix(1.0, 0.35, uVariant);
+
+              gl_FragColor = vec4(col, alpha);
             }
           `,
           transparent: true,
@@ -1339,42 +1637,156 @@
           blending: THREE.AdditiveBlending
         });
 
-        floorDecalMesh = new THREE.Mesh(floorDecalGeo, floorDecalMaterial);
-        floorDecalMesh.rotation.x = -Math.PI / 2;
-        floorDecalMesh.position.set(0, 0.004, 1.2);
-        portalRootGroup.add(floorDecalMesh);
+        floorLightPoolMesh = new THREE.Mesh(floorPoolGeo, floorPoolMat);
+        floorLightPoolMesh.rotation.x = -Math.PI / 2;
+        floorLightPoolMesh.position.set(0, 0.002, 1.15);
+        portalRootGroup.add(floorLightPoolMesh);
 
-        // --- E. THE OTHER WORLD REALM ---
+        // --- G. LIGHT SPILL 3: THIN VERTICAL ANAMORPHIC STREAK & CHEAP BLOOM ---
+        const anamorphicGeo = new THREE.PlaneGeometry(0.12, 3.1);
+        anamorphicGeo.translate(0, 1.55, 0);
+        const anamorphicMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uVariant: { value: (state.gateVariant === 'shadow') ? 1.0 : 0.0 },
+            uOpeningProgress: { value: state.openingProgress }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float uTime;
+            uniform float uVariant;
+            uniform float uOpeningProgress;
+            varying vec2 vUv;
+
+            void main() {
+              float dx = abs(vUv.x - 0.5) * 2.0;
+              float dy = abs(vUv.y - 0.5) * 2.0;
+              float falloff = (1.0 - smoothstep(0.0, 1.0, dx)) * (1.0 - smoothstep(0.0, 1.0, dy * dy));
+              if (falloff < 0.01) discard;
+
+              vec3 col = mix(vec3(0.99, 0.97, 0.92), vec3(0.02, 0.02, 0.03), uVariant);
+              float alpha = falloff * uOpeningProgress * mix(0.40, 0.0, uVariant);
+
+              gl_FragColor = vec4(col, alpha);
+            }
+          `,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        anamorphicStreakMesh = new THREE.Mesh(anamorphicGeo, anamorphicMat);
+        anamorphicStreakMesh.position.set(0, 0, 0.008);
+        portalRootGroup.add(anamorphicStreakMesh);
+
+        // Additive Bloom Gradient Sprite
+        const bloomGeo = new THREE.PlaneGeometry(1.4, 3.2);
+        bloomGeo.translate(0, 1.55, 0);
+        const bloomMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uVariant: { value: (state.gateVariant === 'shadow') ? 1.0 : 0.0 },
+            uOpeningProgress: { value: state.openingProgress }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float uTime;
+            uniform float uVariant;
+            uniform float uOpeningProgress;
+            varying vec2 vUv;
+
+            void main() {
+              float d = length(vec2((vUv.x - 0.5) * 2.8, (vUv.y - 0.5) * 1.1));
+              float falloff = smoothstep(1.0, 0.0, d);
+              if (falloff < 0.01) discard;
+
+              float breathe = 0.96 + 0.04 * sin(uTime * 1.8);
+              vec3 col = mix(vec3(0.96, 0.92, 0.84), vec3(0.01, 0.01, 0.02), uVariant);
+              float alpha = falloff * breathe * uOpeningProgress * mix(0.24, 0.0, uVariant);
+
+              gl_FragColor = vec4(col, alpha);
+            }
+          `,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        bloomSpriteMesh = new THREE.Mesh(bloomGeo, bloomMat);
+        bloomSpriteMesh.position.set(0, 0, 0.009);
+        portalRootGroup.add(bloomSpriteMesh);
+
+        // --- H. THE OTHER WORLD REALM ---
         buildOtherWorldAtmosphere();
 
-        // --- F. PARTICLES CROSSING THE THRESHOLD & EDGE SPARKS ---
+        // --- I. PARTICLES CROSSING THE THRESHOLD ---
         buildBoundaryCrossingParticles();
 
         placePortalInFront(state.portalDistance);
       }
 
       /* -------------------------------------------------------------
-       * 6. The Other World (Volumetric Fog, Parallax Silhouettes & Drifting Motes)
+       * 6. The Other World (Forgotten Shore: Glassy Sea, Ash Shore, Spire & Mist)
        * ----------------------------------------------------------- */
       function buildOtherWorldAtmosphere() {
-        // Interior material stencil setup
-        const basaltFloorMat = new THREE.MeshStandardMaterial({
-          color: 0x0f0f12,
-          roughness: 0.92,
-          metalness: 0.18,
+        // --- 1. BLACK GLASSY SEA WITH SLOW LOW WAVES ---
+        // Obsidian reflective water plane with low wave displacement
+        const seaGeo = new THREE.PlaneGeometry(70, 70, 48, 48);
+        const seaMat = new THREE.MeshStandardMaterial({
+          color: 0x050608,
+          roughness: 0.14,
+          metalness: 0.88,
           stencilWrite: true,
           stencilRef: 1,
           stencilFunc: THREE.EqualStencilFunc
         });
 
-        // 1. Basalt Flagstone Floor
-        const floorGeo = new THREE.PlaneGeometry(60, 60);
-        const floor = new THREE.Mesh(floorGeo, basaltFloorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.set(0, 0, -15);
-        otherWorldGroup.add(floor);
+        seaWaterMesh = new THREE.Mesh(seaGeo, seaMat);
+        seaWaterMesh.rotation.x = -Math.PI / 2;
+        seaWaterMesh.position.set(0, -0.04, -20);
+        // Cache original base vertex positions for wave displacement
+        seaWaterMesh.userData.basePositions = seaWaterMesh.geometry.attributes.position.clone();
+        otherWorldGroup.add(seaWaterMesh);
 
-        // 2. Volumetric Scrolling Fog Planes
+        // --- 2. PALE ASH-WHITE SHORELINE ---
+        // Bleached shore dunes sloping down into the black water
+        const shoreGeo = new THREE.PlaneGeometry(28, 9, 36, 16);
+        const posAttr = shoreGeo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+          const u = posAttr.getY(i); // along local Y (which becomes Z)
+          // Gentle sloping elevation: higher near camera, descending into the dark sea
+          const slope = Math.max(0.0, (u + 4.5) * 0.08);
+          posAttr.setZ(i, slope);
+        }
+        shoreGeo.computeVertexNormals();
+
+        const shoreMat = new THREE.MeshStandardMaterial({
+          color: 0x828286, // Pale ash grey
+          roughness: 0.96,
+          metalness: 0.04,
+          stencilWrite: true,
+          stencilRef: 1,
+          stencilFunc: THREE.EqualStencilFunc
+        });
+
+        const shoreMesh = new THREE.Mesh(shoreGeo, shoreMat);
+        shoreMesh.rotation.x = -Math.PI / 2;
+        shoreMesh.position.set(0, 0.0, -4.5);
+        otherWorldGroup.add(shoreMesh);
+
+        // --- 3. VOLUMETRIC SCROLLING FOG PLANES ---
         fogPlanesGroup = new THREE.Group();
         otherWorldGroup.add(fogPlanesGroup);
 
@@ -1427,85 +1839,157 @@
           fogPlanesGroup.add(plane);
         }
 
-        // 3. Parallax Silhouette Layers with Atmospheric Perspective
+        // --- 4. PARALLAX SILHOUETTE LAYERS: FORGOTTEN SHORE ---
         parallaxSilhouettesGroup = new THREE.Group();
         otherWorldGroup.add(parallaxSilhouettesGroup);
 
-        // Silhouette Layers Materials (fade to fog color as depth increases)
-        const nearMat = new THREE.MeshStandardMaterial({
-          color: 0x141418,
-          roughness: 0.9,
+        // Layer 1: Near Shore - Skeletal ship ribs and scattered bleached bones (-3.8m to -5.0m)
+        const nearGroup = new THREE.Group();
+        nearGroup.userData.parallaxWeight = 0.05;
+
+        const boneMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(CONFIG.boneWhite),
+          roughness: 0.94,
+          metalness: 0.05,
           stencilWrite: true,
           stencilRef: 1,
           stencilFunc: THREE.EqualStencilFunc
         });
 
-        const midMat = new THREE.MeshStandardMaterial({
-          color: 0x111114,
-          roughness: 0.95,
+        const timberMat = new THREE.MeshStandardMaterial({
+          color: 0x121215, // Rotted blackened timber
+          roughness: 0.92,
           stencilWrite: true,
           stencilRef: 1,
           stencilFunc: THREE.EqualStencilFunc
         });
 
+        // Curved skeletal shipwreck ribs rising from the sand
+        const ribGeo = new THREE.TorusGeometry(1.15, 0.065, 8, 20, Math.PI * 0.72);
+        for (let i = 0; i < 7; i++) {
+          const rib = new THREE.Mesh(ribGeo, (i % 2 === 0) ? timberMat : boneMat);
+          const x = (i - 3.0) * 0.85 + Math.sin(i * 1.5) * 0.2;
+          rib.position.set(x, 0.55, -4.2 + (i * 0.35));
+          rib.rotation.y = (i * 0.15) - 0.35;
+          rib.rotation.z = Math.PI * 0.14;
+          nearGroup.add(rib);
+        }
+
+        // Bleached bone shards and skeletal spines along the tide line
+        const boneShardGeo = new THREE.ConeGeometry(0.08, 0.75, 5);
+        for (let i = 0; i < 11; i++) {
+          const shard = new THREE.Mesh(boneShardGeo, boneMat);
+          const x = (i - 5.0) * 0.65 + Math.cos(i * 2.1) * 0.3;
+          shard.position.set(x, 0.25, -3.8 + Math.sin(i * 1.7) * 0.5);
+          shard.rotation.z = Math.sin(i * 3.0) * 0.45;
+          shard.rotation.x = 0.3;
+          nearGroup.add(shard);
+        }
+        parallaxSilhouettesGroup.add(nearGroup);
+
+        // Layer 2: Mid Distance - Headless Colossal Ancient Statue & Weathered Ruins (-12.5m)
+        const midGroup = new THREE.Group();
+        midGroup.userData.parallaxWeight = 0.12;
+
+        const statueMat = new THREE.MeshStandardMaterial({
+          color: 0x131317,
+          roughness: 0.94,
+          stencilWrite: true,
+          stencilRef: 1,
+          stencilFunc: THREE.EqualStencilFunc
+        });
+
+        // Headless Colossal Statue assembly (pedestal, draped torso, broken neck)
+        const statueRoot = new THREE.Group();
+        statueRoot.position.set(2.4, 0, -12.5);
+        statueRoot.rotation.y = -0.28;
+
+        // Stepped weathered plinth base
+        const plinthBase = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.8, 3.0), statueMat);
+        plinthBase.position.set(0, 0.4, 0);
+        statueRoot.add(plinthBase);
+
+        const plinthTop = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.6, 2.4), statueMat);
+        plinthTop.position.set(0, 1.1, 0);
+        statueRoot.add(plinthTop);
+
+        // Draped muscular torso (tapered waist to broad chest)
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.72, 3.8, 8), statueMat);
+        torso.position.set(0, 3.3, 0);
+        statueRoot.add(torso);
+
+        // Broad shoulder mantel
+        const shoulders = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.0, 1.4), statueMat);
+        shoulders.position.set(0, 5.0, 0);
+        statueRoot.add(shoulders);
+
+        // Broken fractured neck stump (no head)
+        const neckStump = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.55, 0.7, 7), statueMat);
+        neckStump.position.set(0, 5.65, 0);
+        neckStump.rotation.z = 0.12;
+        statueRoot.add(neckStump);
+
+        // Broken flanking column stumps in the black water
+        for (let i = 0; i < 4; i++) {
+          const colHeight = 1.8 + (i % 2) * 1.2;
+          const col = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.44, colHeight, 8), statueMat);
+          const cx = -3.6 + (i * 1.8) + Math.cos(i) * 0.4;
+          col.position.set(cx, colHeight * 0.5, -11.0 + Math.sin(i) * 1.2);
+          col.rotation.z = (Math.sin(i) * 0.10);
+          midGroup.add(col);
+        }
+        midGroup.add(statueRoot);
+        parallaxSilhouettesGroup.add(midGroup);
+
+        // Layer 3: Horizon - The Crimson Spire needle monolith (-34.0m)
+        const farGroup = new THREE.Group();
+        farGroup.userData.parallaxWeight = 0.24;
+
+        // Needle-thin colossal tower rising into the clouds with a faint dried-blood red tint
+        const spireMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(CONFIG.bloodRedAccent),
+          roughness: 0.82,
+          metalness: 0.22,
+          stencilWrite: true,
+          stencilRef: 1,
+          stencilFunc: THREE.EqualStencilFunc
+        });
+
+        // Tower is intentionally needle-thin, towering and distant
+        const spireGeo = new THREE.CylinderGeometry(0.08, 0.85, 44.0, 8);
+        const crimsonSpire = new THREE.Mesh(spireGeo, spireMat);
+        crimsonSpire.position.set(1.2, 20.0, -34.0);
+        farGroup.add(crimsonSpire);
+
+        // Distant jagged sea crag cones flanking the horizon
         const farMat = new THREE.MeshStandardMaterial({
-          color: 0x0c0c0e,
+          color: 0x09090c,
           roughness: 0.98,
           stencilWrite: true,
           stencilRef: 1,
           stencilFunc: THREE.EqualStencilFunc
         });
 
-        // Layer 1: Near Leaning Basalt Dolmens (-4.5m)
-        const nearGroup = new THREE.Group();
-        nearGroup.userData.parallaxWeight = 0.05;
-        const colGeo = new THREE.BoxGeometry(0.65, 4.2, 0.65);
-        for (let i = 0; i < 8; i++) {
-          const m = new THREE.Mesh(colGeo, nearMat);
-          const x = (i - 3.5) * 1.5 + (Math.sin(i * 2.3) * 0.4);
-          m.position.set(x, 2.1, -4.5 + Math.cos(i) * 0.8);
-          m.rotation.z = Math.sin(i) * 0.08;
-          nearGroup.add(m);
-        }
-        parallaxSilhouettesGroup.add(nearGroup);
-
-        // Layer 2: Mid Ruined Arches & Monoliths (-10.0m)
-        const midGroup = new THREE.Group();
-        midGroup.userData.parallaxWeight = 0.12;
-        const archPillarGeo = new THREE.BoxGeometry(1.1, 7.5, 1.1);
-        for (let i = 0; i < 9; i++) {
-          const m = new THREE.Mesh(archPillarGeo, midMat);
-          const x = (i - 4.0) * 2.8 + Math.cos(i * 1.7);
-          m.position.set(x, 3.75, -10.5 + Math.sin(i) * 1.5);
-          m.rotation.y = i * 0.6;
-          midGroup.add(m);
-        }
-        parallaxSilhouettesGroup.add(midGroup);
-
-        // Layer 3: Far Colossal Spire Towers (-22.0m)
-        const farGroup = new THREE.Group();
-        farGroup.userData.parallaxWeight = 0.22;
-        const towerGeo = new THREE.BoxGeometry(2.4, 16.0, 2.4);
-        for (let i = 0; i < 11; i++) {
-          const m = new THREE.Mesh(towerGeo, farMat);
-          const x = (i - 5.0) * 4.6;
-          m.position.set(x, 8.0, -22.0 + Math.sin(i * 3.1) * 3.0);
-          farGroup.add(m);
+        for (let i = 0; i < 5; i++) {
+          const cragHeight = 6.0 + (i % 3) * 3.5;
+          const crag = new THREE.Mesh(new THREE.ConeGeometry(1.6, cragHeight, 5), farMat);
+          crag.position.set((i - 2) * 10.0 + Math.cos(i) * 2.0, cragHeight * 0.45, -35.0);
+          farGroup.add(crag);
         }
         parallaxSilhouettesGroup.add(farGroup);
 
-        // 4. Drifting Spores / Particles inside the Realm (Custom Shader Points)
-        const pCount = CONFIG.interiorParticleCount;
+        // 5. Drifting Cold Wind Spores / Particles (Bug Fix: clamped point size & near-camera alpha fade)
+        const pCount = Math.min(CONFIG.interiorParticleCount, 300);
         const pGeo = new THREE.BufferGeometry();
         const pPos = new Float32Array(pCount * 3);
         const pScales = new Float32Array(pCount);
         const pPhase = new Float32Array(pCount);
 
         for (let i = 0; i < pCount; i++) {
-          pPos[i * 3 + 0] = (Math.random() - 0.5) * 16.0;
-          pPos[i * 3 + 1] = 0.2 + Math.random() * 5.0;
-          pPos[i * 3 + 2] = -0.5 - Math.random() * 24.0;
-          pScales[i] = 0.8 + Math.random() * 1.8;
+          pPos[i * 3 + 0] = (Math.random() - 0.5) * 14.0;
+          pPos[i * 3 + 1] = 0.2 + Math.random() * 4.5;
+          pPos[i * 3 + 2] = -0.6 - Math.random() * 22.0;
+          pScales[i] = 0.8 + Math.random() * 1.4;
           pPhase[i] = Math.random() * Math.PI * 2;
         }
 
@@ -1516,21 +2000,34 @@
         const pMat = new THREE.ShaderMaterial({
           uniforms: {
             uTime: { value: 0 },
-            uColor: { value: new THREE.Color(CONFIG.accentColor) }
+            uColor: { value: new THREE.Color(CONFIG.boneWhite) },
+            uParticleMinSize: { value: CONFIG.particleMinSize || 2.0 },
+            uParticleMaxSize: { value: CONFIG.particleMaxSize || 20.0 },
+            uParticleFadeDist: { value: CONFIG.particleFadeDist || 0.8 }
           },
           vertexShader: `
             attribute float scale;
             attribute float phase;
             uniform float uTime;
+            uniform float uParticleMinSize;
+            uniform float uParticleMaxSize;
+            uniform float uParticleFadeDist;
             varying float vAlpha;
             void main() {
               vec3 p = position;
-              p.y += sin(uTime * 0.6 + phase) * 0.12;
-              p.x += cos(uTime * 0.4 + phase) * 0.08;
+              p.y += sin(uTime * 0.35 + phase) * 0.06;
+              p.x += cos(uTime * 0.25 + phase) * 0.04;
               vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
-              gl_PointSize = scale * (180.0 / -mvPosition.z);
+              float dist = -mvPosition.z;
+
+              // Strictly clamped between 2.0px and 20.0px (eliminates giant blurry blobs)
+              float rawSize = scale * (70.0 / max(dist, 0.35));
+              gl_PointSize = clamp(rawSize, uParticleMinSize, uParticleMaxSize);
               gl_Position = projectionMatrix * mvPosition;
-              vAlpha = 0.4 + 0.3 * sin(uTime * 1.5 + phase);
+
+              // Fade alpha to zero below 0.8m from camera
+              float nearFade = smoothstep(uParticleFadeDist, uParticleFadeDist + 0.6, dist);
+              vAlpha = (0.32 + 0.22 * sin(uTime * 1.2 + phase)) * nearFade;
             }
           `,
           fragmentShader: `
@@ -1539,12 +2036,14 @@
             void main() {
               float d = length(gl_PointCoord - vec2(0.5));
               if (d > 0.5) discard;
-              float alpha = smoothstep(0.5, 0.0, d) * vAlpha;
-              gl_FragColor = vec4(uColor, alpha);
+              // Soft quadratic falloff - never a hard disc or blob
+              float softFalloff = smoothstep(0.5, 0.05, d);
+              softFalloff = softFalloff * softFalloff;
+              gl_FragColor = vec4(uColor, softFalloff * vAlpha);
             }
           `,
           transparent: true,
-          depthWrite: false,
+          depthWrite: false, // Depth write off as required
           stencilWrite: true,
           stencilRef: 1,
           stencilFunc: THREE.EqualStencilFunc
@@ -1553,83 +2052,82 @@
         interiorParticles = new THREE.Points(pGeo, pMat);
         otherWorldGroup.add(interiorParticles);
 
-        // 5. Sparse Out-of-Phase Bioluminescent Accents
-        const bioGeo = new THREE.SphereGeometry(0.045, 8, 8);
-        for (let i = 0; i < 16; i++) {
-          const bioMat = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(CONFIG.accentColor),
-            stencilWrite: true,
-            stencilRef: 1,
-            stencilFunc: THREE.EqualStencilFunc
-          });
-          const bio = new THREE.Mesh(bioGeo, bioMat);
-          const x = (Math.sin(i * 1.8) * 3.8);
-          const z = -3.5 - (i * 1.1);
-          bio.position.set(x, 0.6 + (i % 4) * 0.4, z);
-          bio.userData.phase = i * 0.7;
-          otherWorldGroup.add(bio);
-        }
-
         // 6. Dim Moving Light Source (Elliptical orbit shifting highlights)
-        dimMovingLight = new THREE.PointLight(0xc29854, 1.25, 11, 2);
+        dimMovingLight = new THREE.PointLight(0x8a7248, 1.1, 12, 2);
         dimMovingLight.position.set(0, 1.8, -2.5);
         otherWorldGroup.add(dimMovingLight);
 
-        const interiorAmbient = new THREE.AmbientLight(0x111114, 0.85);
+        const interiorAmbient = new THREE.AmbientLight(0x0a0a0d, 0.9);
         otherWorldGroup.add(interiorAmbient);
 
         scene.fog = new THREE.FogExp2(new THREE.Color(CONFIG.fogColor).getHex(), CONFIG.fogDensity);
       }
 
       /* -------------------------------------------------------------
-       * 7. Boundary Crossing Particles & Falling Ember Sparks
+      /* -------------------------------------------------------------
+       * 7. Boundary Crossing Dust Motes (Warm Drift vs Inward Light-Drinking)
        * ----------------------------------------------------------- */
       function buildBoundaryCrossingParticles() {
-        // A. Particles drifting OUT of the portal into the real room
-        const count = CONFIG.crossingParticleCount;
+        const count = CONFIG.crossingParticleCount || 160;
         const cGeo = new THREE.BufferGeometry();
         const cPos = new Float32Array(count * 3);
-        const cVel = new Float32Array(count);
+        const cVel = new Float32Array(count * 3);
         const cLifes = new Float32Array(count);
 
         for (let i = 0; i < count; i++) {
-          cPos[i * 3 + 0] = (Math.random() - 0.5) * 0.75;
-          cPos[i * 3 + 1] = 0.4 + Math.random() * 1.5;
-          cPos[i * 3 + 2] = -0.4 + Math.random() * 1.8; // spans from inside to outside
-          cVel[i] = CONFIG.crossingDriftSpeed * (0.7 + Math.random() * 0.6);
+          cPos[i * 3 + 0] = (Math.random() - 0.5) * 1.2;
+          cPos[i * 3 + 1] = 0.3 + Math.random() * 2.2;
+          cPos[i * 3 + 2] = -0.1 + Math.random() * 1.6;
+          cVel[i * 3 + 0] = (Math.random() - 0.5) * 0.08;
+          cVel[i * 3 + 1] = 0.04 + Math.random() * 0.08;
+          cVel[i * 3 + 2] = CONFIG.crossingDriftSpeed * (0.6 + Math.random() * 0.6);
           cLifes[i] = Math.random();
         }
 
         cGeo.setAttribute('position', new THREE.BufferAttribute(cPos, 3));
-        cGeo.setAttribute('vel', new THREE.BufferAttribute(cVel, 1));
         cGeo.setAttribute('life', new THREE.BufferAttribute(cLifes, 1));
 
         const cMat = new THREE.ShaderMaterial({
           uniforms: {
             uTime: { value: 0 },
-            uColor: { value: new THREE.Color(CONFIG.accentColor) }
+            uVariant: { value: (state.gateVariant === 'shadow') ? 1.0 : 0.0 },
+            uParticleFadeDist: { value: CONFIG.particleFadeDist || 0.8 }
           },
           vertexShader: `
             attribute float life;
+            uniform float uVariant;
+            uniform float uParticleFadeDist;
             varying float vAlpha;
+            varying vec3 vColor;
             void main() {
               vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-              gl_PointSize = (1.0 + life * 1.5) * (140.0 / -mvPosition.z);
+              float dist = -mvPosition.z;
+
+              // Strictly clamped size (2.0px to 12.0px)
+              float rawSize = (0.9 + life * 1.1) * (45.0 / max(dist, 0.35));
+              gl_PointSize = clamp(rawSize, 2.0, 12.0);
               gl_Position = projectionMatrix * mvPosition;
 
-              // Fades as it moves farther forward into the real room
-              float distForward = position.z;
-              vAlpha = smoothstep(1.6, 0.1, distForward) * 0.55;
+              // Proximity fade near camera
+              float nearFade = smoothstep(uParticleFadeDist, uParticleFadeDist + 0.5, dist);
+              float forwardFade = smoothstep(1.8, 0.1, position.z);
+
+              // Radiant: warm white / pale gold; Shadow: cold ash grey
+              vec3 radiantCol = mix(vec3(0.99, 0.98, 0.95), vec3(0.91, 0.87, 0.76), life);
+              vec3 shadowCol  = vec3(0.52, 0.54, 0.56);
+              vColor = mix(radiantCol, shadowCol, uVariant);
+
+              vAlpha = nearFade * forwardFade * mix(0.55, 0.25, uVariant) * (0.5 + 0.5 * life);
             }
           `,
           fragmentShader: `
-            uniform vec3 uColor;
             varying float vAlpha;
+            varying vec3 vColor;
             void main() {
               float d = length(gl_PointCoord - vec2(0.5));
               if (d > 0.5) discard;
-              float alpha = smoothstep(0.5, 0.0, d) * vAlpha;
-              gl_FragColor = vec4(uColor, alpha);
+              float softFalloff = smoothstep(0.5, 0.06, d);
+              gl_FragColor = vec4(vColor, softFalloff * softFalloff * vAlpha);
             }
           `,
           transparent: true,
@@ -1637,62 +2135,8 @@
         });
 
         crossingParticles = new THREE.Points(cGeo, cMat);
+        crossingParticles.userData.velocities = cVel;
         portalRootGroup.add(crossingParticles);
-
-        // B. Falling Ember Sparks along the torn edge
-        const sparkCount = CONFIG.fallingEmberCount;
-        const sGeo = new THREE.BufferGeometry();
-        const sPos = new Float32Array(sparkCount * 3);
-        const sLifes = new Float32Array(sparkCount);
-
-        for (let i = 0; i < sparkCount; i++) {
-          resetSparkPosition(sPos, sLifes, i);
-        }
-
-        sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
-        sGeo.setAttribute('life', new THREE.BufferAttribute(sLifes, 1));
-
-        const sMat = new THREE.ShaderMaterial({
-          uniforms: {
-            uEmberColor: { value: new THREE.Color(CONFIG.emberColor) }
-          },
-          vertexShader: `
-            attribute float life;
-            varying float vAlpha;
-            void main() {
-              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-              gl_PointSize = (2.0 + life * 2.0) * (120.0 / -mvPosition.z);
-              gl_Position = projectionMatrix * mvPosition;
-              vAlpha = life * 0.85;
-            }
-          `,
-          fragmentShader: `
-            uniform vec3 uEmberColor;
-            varying float vAlpha;
-            void main() {
-              float d = length(gl_PointCoord - vec2(0.5));
-              if (d > 0.5) discard;
-              float a = smoothstep(0.5, 0.0, d) * vAlpha;
-              gl_FragColor = vec4(uEmberColor, a);
-            }
-          `,
-          transparent: true,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending
-        });
-
-        fallingEmberParticles = new THREE.Points(sGeo, sMat);
-        portalRootGroup.add(fallingEmberParticles);
-      }
-
-      function resetSparkPosition(posArr, lifeArr, i) {
-        const angle = Math.random() * Math.PI * 2;
-        const rx = 0.52 * Math.cos(angle);
-        const ry = 1.02 * Math.sin(angle);
-        posArr[i * 3 + 0] = rx + (Math.random() - 0.5) * 0.04;
-        posArr[i * 3 + 1] = 1.15 + ry + (Math.random() - 0.5) * 0.04;
-        posArr[i * 3 + 2] = (Math.random() - 0.5) * 0.03;
-        lifeArr[i] = 1.0;
       }
 
       /* -------------------------------------------------------------
@@ -1731,6 +2175,9 @@
       /* -------------------------------------------------------------
        * 9. Step-Through Traversal & Cinematic Crossing FX
        * ----------------------------------------------------------- */
+      /* -------------------------------------------------------------
+       * 9. Step-Through Traversal & Shadow-Step Cinematic FX
+       * ----------------------------------------------------------- */
       function triggerStepTransition() {
         if (state.isStepping) return;
         state.isStepping = true;
@@ -1748,6 +2195,11 @@
 
         const targetPos = state.isInsideRealm ? outsideTargetPos : insideTargetPos;
         const willBeInside = !state.isInsideRealm;
+
+        // Shadow-step dissolve (black tendrils pulling to center)
+        if (dom.shadowStepOverlay) {
+          dom.shadowStepOverlay.classList.add('active');
+        }
 
         function animateStep(now) {
           const elapsed = now - startTime;
@@ -1779,6 +2231,9 @@
             camera.fov = startFov;
             camera.updateProjectionMatrix();
             state.isStepping = false;
+            if (dom.shadowStepOverlay) {
+              setTimeout(() => dom.shadowStepOverlay.classList.remove('active'), 180);
+            }
           }
         }
 
@@ -1797,10 +2252,13 @@
         if (inside) {
           dom.video.style.opacity = '0';
           setTimeout(() => { if (state.isInsideRealm) dom.video.style.display = 'none'; }, 400);
-          dom.hudRealmBadge.textContent = '[INTERIOR]';
-          dom.hudRealmBadge.style.color = 'var(--brass)';
+          if (dom.hudStatusLine) {
+            dom.hudStatusLine.textContent = '[IMMERSED]';
+            dom.hudStatusLine.style.color = 'var(--brass)';
+          }
           dom.btnStep.textContent = 'Step Out';
           dom.btnStep.classList.remove('btn-brass');
+          showSystemNotification('[Entered Dream Realm]');
 
           otherWorldGroup.traverse((child) => {
             if (child.material) child.material.stencilFunc = THREE.AlwaysStencilFunc;
@@ -1810,15 +2268,144 @@
             dom.video.style.display = 'block';
             setTimeout(() => { dom.video.style.opacity = '1'; }, 20);
           }
-          dom.hudRealmBadge.textContent = '[EXTERIOR]';
-          dom.hudRealmBadge.style.color = 'inherit';
+          if (dom.hudStatusLine) {
+            dom.hudStatusLine.textContent = '[EXTERIOR]';
+            dom.hudStatusLine.style.color = 'inherit';
+          }
           dom.btnStep.textContent = 'Step Through';
           dom.btnStep.classList.add('btn-brass');
+          // Gradual return of exposure and color on exit
+          if (dom.video) {
+            dom.video.style.filter = 'brightness(1.0) contrast(100%)';
+          }
+          showSystemNotification('[Returned to Waking World]');
 
           otherWorldGroup.traverse((child) => {
             if (child.material) child.material.stencilFunc = THREE.EqualStencilFunc;
           });
         }
+      }
+
+      /* -------------------------------------------------------------
+       * System Notification & Dream Gate Opening Sequences
+       * ----------------------------------------------------------- */
+      function showSystemNotification(text, duration = 3200) {
+        if (!dom.systemNotification) return;
+        dom.systemNotification.textContent = text;
+        dom.systemNotification.classList.add('visible');
+        clearTimeout(dom.systemNotification._timer);
+        dom.systemNotification._timer = setTimeout(() => {
+          dom.systemNotification.classList.remove('visible');
+        }, duration);
+      }
+
+      function triggerOpeningSequence(onComplete) {
+        if (state.openingPhase === 'opening') return;
+        state.openingPhase = 'opening';
+        state.pointProgress = 0.0;
+        state.lineProgress = 0.0;
+        state.openingProgress = 0.0;
+        state.gateSeed = Math.random() * 100.0;
+
+        const startTime = performance.now();
+        audio.triggerRisingTone();
+
+        let swellTriggered = false;
+
+        function step(now) {
+          const elapsed = (now - startTime) / 1000.0;
+
+          // 1. Single pinprick point appears at gate height (0.0s to 0.2s)
+          if (elapsed < 0.2) {
+            state.pointProgress = Math.min(1.0, elapsed / 0.2);
+            state.lineProgress = 0.0;
+            state.openingProgress = 0.0;
+          }
+          // 2. Hairline vertical line draws outward from point over ~0.6s (0.2s to 0.8s)
+          else if (elapsed < 0.8) {
+            state.pointProgress = 1.0;
+            state.lineProgress = Math.min(1.0, (elapsed - 0.2) / 0.6);
+            state.openingProgress = 0.0;
+          }
+          // 3. Slit parts sideways like a blade cut opening over ~1.2s (0.8s to 2.0s)
+          else if (elapsed < 2.0) {
+            if (!swellTriggered) {
+              swellTriggered = true;
+              audio.triggerOpeningSwell();
+              triggerCrossingFlash();
+            }
+            state.pointProgress = 1.0;
+            state.lineProgress = 1.0;
+            const p = (elapsed - 0.8) / 1.2;
+            state.openingProgress = Math.min(1.0, 1.0 - Math.pow(1.0 - p, 3));
+          }
+          // 4. Complete
+          else {
+            state.pointProgress = 1.0;
+            state.lineProgress = 1.0;
+            state.openingProgress = 1.0;
+            state.openingPhase = 'open';
+            showSystemNotification('[A Dream Gate has opened.]');
+            if (onComplete) onComplete();
+            return;
+          }
+
+          requestAnimationFrame(step);
+        }
+
+        requestAnimationFrame(step);
+      }
+
+      function triggerCloseAndReplace() {
+        if (state.openingPhase === 'closing' || state.openingPhase === 'opening') return;
+        state.openingPhase = 'closing';
+
+        const startTime = performance.now();
+        const duration = 0.8; // Closes in reverse over ~0.8s
+
+        function step(now) {
+          const elapsed = (now - startTime) / 1000.0;
+          const progress = Math.min(1.0, elapsed / duration);
+
+          // Part 1: slit closes sideways (0.0 to 0.5s)
+          if (elapsed < 0.5) {
+            state.openingProgress = Math.max(0.0, 1.0 - (elapsed / 0.5));
+            state.lineProgress = 1.0;
+            state.pointProgress = 1.0;
+          }
+          // Part 2: hairline vertical line collapses back to point (0.5s to 0.8s)
+          else {
+            state.openingProgress = 0.0;
+            state.lineProgress = Math.max(0.0, 1.0 - ((elapsed - 0.5) / 0.3));
+            state.pointProgress = state.lineProgress;
+          }
+
+          if (progress < 1.0) {
+            requestAnimationFrame(step);
+          } else {
+            state.openingProgress = 0.0;
+            state.lineProgress = 0.0;
+            state.pointProgress = 0.0;
+            state.openingPhase = 'idle';
+
+            // Reposition in front of user and reopen
+            placePortalInFront(state.portalDistance);
+            triggerOpeningSequence();
+          }
+        }
+
+        requestAnimationFrame(step);
+      }
+
+      function toggleGateVariant() {
+        state.gateVariant = (state.gateVariant === 'radiant') ? 'shadow' : 'radiant';
+        CONFIG.gateVariant = state.gateVariant;
+        if (dom.variantLabel) {
+          dom.variantLabel.textContent = state.gateVariant.toUpperCase();
+        }
+        const isShadow = (state.gateVariant === 'shadow');
+        dom.btnVariantToggle.classList.toggle('btn-brass', !isShadow);
+        showSystemNotification(isShadow ? '[Shadow Slit Manifested]' : '[Radiant Slit Manifested]');
       }
 
       /* -------------------------------------------------------------
@@ -2005,22 +2592,97 @@
         }
 
         const t = (timestamp || now) * 0.001;
+        const isShadow = (state.gateVariant === 'shadow');
 
-        // Animate torn aperture & charred rim shaders
+        // Animate Dream Gate Blade Slash Shaders & Uniforms
         if (portalApertureMask && portalApertureMask.material.uniforms) {
-          portalApertureMask.material.uniforms.uTime.value = t;
+          portalApertureMask.material.uniforms.uOpeningProgress.value = state.openingProgress;
+          portalApertureMask.material.uniforms.uLineProgress.value = state.lineProgress;
+          portalApertureMask.material.uniforms.uSeed.value = state.gateSeed;
         }
-        if (portalTornEdgeMesh && portalTornEdgeMesh.material.uniforms) {
-          portalTornEdgeMesh.material.uniforms.uTime.value = t;
+
+        if (portalEdgeMesh && portalEdgeMesh.material.uniforms) {
+          portalEdgeMesh.material.uniforms.uTime.value = t;
+          portalEdgeMesh.material.uniforms.uOpeningProgress.value = state.openingProgress;
+          portalEdgeMesh.material.uniforms.uLineProgress.value = state.lineProgress;
+          portalEdgeMesh.material.uniforms.uPointProgress.value = state.pointProgress;
+          portalEdgeMesh.material.uniforms.uVariant.value = isShadow ? 1.0 : 0.0;
+          portalEdgeMesh.material.uniforms.uSeed.value = state.gateSeed;
         }
+
         if (portalRefractionMesh && portalRefractionMesh.material.uniforms) {
           portalRefractionMesh.material.uniforms.uTime.value = t;
+          portalRefractionMesh.material.uniforms.uOpeningProgress.value = state.openingProgress;
+          portalRefractionMesh.material.uniforms.uLineProgress.value = state.lineProgress;
+          portalRefractionMesh.material.uniforms.uSeed.value = state.gateSeed;
           if (videoTexture && dom.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
             videoTexture.needsUpdate = true;
           }
         }
-        if (floorDecalMesh && floorDecalMesh.material.uniforms) {
-          floorDecalMesh.material.uniforms.uTime.value = t;
+
+        // Recessed depth layers: parallax counter-shift in Shadow mode, slow rays in Radiant mode
+        if (recedingLayersGroup) {
+          const camDir = new THREE.Vector3();
+          camera.getWorldDirection(camDir);
+          // 3-5% slow breathing movement of slit width in shadow mode
+          const breatheWidth = isShadow ? (1.0 + 0.04 * Math.sin(t * 1.5)) : 1.0;
+
+          recedingLayersGroup.children.forEach((layer, i) => {
+            if (layer.material.uniforms) {
+              layer.material.uniforms.uTime.value = t;
+              layer.material.uniforms.uVariant.value = isShadow ? 1.0 : 0.0;
+              layer.material.uniforms.uOpeningProgress.value = state.openingProgress;
+            }
+            if (isShadow) {
+              // Counter-shift slightly toward viewer's position so the darkness follows you
+              layer.position.x = -camDir.x * 0.16 * ((i + 1) / 3.0);
+              layer.position.y = 1.55 - camDir.y * 0.08 * ((i + 1) / 3.0);
+              layer.scale.x = breatheWidth;
+            } else {
+              layer.position.x = 0;
+              layer.position.y = 1.55;
+              layer.scale.x = 1.0;
+            }
+          });
+        }
+
+        // Light spill meshes
+        if (floorLightStreakMesh && floorLightStreakMesh.material.uniforms) {
+          floorLightStreakMesh.material.uniforms.uTime.value = t;
+          floorLightStreakMesh.material.uniforms.uVariant.value = isShadow ? 1.0 : 0.0;
+          floorLightStreakMesh.material.uniforms.uOpeningProgress.value = state.openingProgress;
+        }
+
+        if (floorLightPoolMesh && floorLightPoolMesh.material.uniforms) {
+          floorLightPoolMesh.material.uniforms.uTime.value = t;
+          floorLightPoolMesh.material.uniforms.uVariant.value = isShadow ? 1.0 : 0.0;
+          floorLightPoolMesh.material.uniforms.uOpeningProgress.value = state.openingProgress;
+        }
+
+        if (anamorphicStreakMesh && anamorphicStreakMesh.material.uniforms) {
+          anamorphicStreakMesh.material.uniforms.uTime.value = t;
+          anamorphicStreakMesh.material.uniforms.uVariant.value = isShadow ? 1.0 : 0.0;
+          anamorphicStreakMesh.material.uniforms.uOpeningProgress.value = state.openingProgress;
+          anamorphicStreakMesh.visible = (!isShadow && state.openingProgress > 0.05);
+        }
+
+        if (bloomSpriteMesh && bloomSpriteMesh.material.uniforms) {
+          bloomSpriteMesh.material.uniforms.uTime.value = t;
+          bloomSpriteMesh.material.uniforms.uVariant.value = isShadow ? 1.0 : 0.0;
+          bloomSpriteMesh.material.uniforms.uOpeningProgress.value = state.openingProgress;
+          bloomSpriteMesh.visible = (!isShadow && state.openingProgress > 0.05);
+        }
+
+        // Animate black glassy sea low swelling waves
+        if (seaWaterMesh && seaWaterMesh.userData.basePositions) {
+          const pos = seaWaterMesh.geometry.attributes.position.array;
+          const base = seaWaterMesh.userData.basePositions.array;
+          for (let i = 0; i < pos.length / 3; i++) {
+            const x = base[i * 3 + 0];
+            const y = base[i * 3 + 1];
+            pos[i * 3 + 2] = base[i * 3 + 2] + Math.sin(x * 0.35 + t * 0.6) * 0.035 + Math.cos(y * 0.28 + t * 0.45) * 0.025;
+          }
+          seaWaterMesh.geometry.attributes.position.needsUpdate = true;
         }
 
         // Animate volumetric scrolling fog planes
@@ -2042,42 +2704,44 @@
           interiorParticles.material.uniforms.uTime.value = t;
         }
 
-        // Animate boundary-crossing particles (drifting OUT of the portal into the real room)
-        if (crossingParticles) {
+        // Animate boundary crossing particles (Radiant: stream out & drift upward; Shadow: inward drift & vanish)
+        if (crossingParticles && crossingParticles.userData.velocities) {
           const pos = crossingParticles.geometry.attributes.position.array;
-          const vel = crossingParticles.geometry.attributes.vel.array;
+          const vel = crossingParticles.userData.velocities;
           const dt = 0.016;
 
-          for (let i = 0; i < pos.length / 3; i++) {
-            pos[i * 3 + 2] += vel[i] * dt; // move forward in Z
-            pos[i * 3 + 0] += Math.sin(t * 1.2 + i) * 0.0012; // gentle horizontal sway
+          if (crossingParticles.material.uniforms) {
+            crossingParticles.material.uniforms.uTime.value = t;
+            crossingParticles.material.uniforms.uVariant.value = isShadow ? 1.0 : 0.0;
+          }
 
-            // Reset when reaching max forward distance
-            if (pos[i * 3 + 2] > 1.6) {
-              pos[i * 3 + 2] = -0.4;
-              pos[i * 3 + 0] = (Math.random() - 0.5) * 0.75;
-              pos[i * 3 + 1] = 0.4 + Math.random() * 1.5;
+          for (let i = 0; i < pos.length / 3; i++) {
+            if (!isShadow) {
+              // Radiant: stream forward and drift upward
+              pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
+              pos[i * 3 + 1] += vel[i * 3 + 1] * dt;
+              pos[i * 3 + 0] += Math.sin(t * 1.2 + i) * 0.001;
+
+              if (pos[i * 3 + 2] > 1.8 || pos[i * 3 + 1] > 2.8) {
+                pos[i * 3 + 2] = -0.05 + Math.random() * 0.12;
+                pos[i * 3 + 1] = 0.3 + Math.random() * 1.8;
+                pos[i * 3 + 0] = (Math.random() - 0.5) * 0.35;
+              }
+            } else {
+              // Shadow: inward drift toward cut and vanish at edge
+              const dirX = Math.sign(pos[i * 3 + 0]) || 1.0;
+              pos[i * 3 + 0] -= dirX * 0.14 * dt;
+              pos[i * 3 + 2] -= 0.06 * dt;
+
+              // Vanish when reaching edge or passing through
+              if (Math.abs(pos[i * 3 + 0]) < 0.03 || pos[i * 3 + 2] < -0.2) {
+                pos[i * 3 + 0] = (Math.random() > 0.5 ? 1 : -1) * (0.45 + Math.random() * 0.65);
+                pos[i * 3 + 1] = 0.4 + Math.random() * 2.0;
+                pos[i * 3 + 2] = 0.3 + Math.random() * 1.2;
+              }
             }
           }
           crossingParticles.geometry.attributes.position.needsUpdate = true;
-        }
-
-        // Animate falling ember sparks along the torn perimeter
-        if (fallingEmberParticles) {
-          const sPos = fallingEmberParticles.geometry.attributes.position.array;
-          const sLife = fallingEmberParticles.geometry.attributes.life.array;
-
-          for (let i = 0; i < sPos.length / 3; i++) {
-            sPos[i * 3 + 1] -= 0.012; // fall under gravity
-            sPos[i * 3 + 0] += (Math.sin(t * 4.0 + i) * 0.0015);
-            sLife[i] -= 0.022;
-
-            if (sLife[i] <= 0 || sPos[i * 3 + 1] < 0.02) {
-              resetSparkPosition(sPos, sLife, i);
-            }
-          }
-          fallingEmberParticles.geometry.attributes.position.needsUpdate = true;
-          fallingEmberParticles.geometry.attributes.life.needsUpdate = true;
         }
 
         // Device Tilt Parallax on the 3 Interior Silhouette Layers
@@ -2097,14 +2761,22 @@
           camera.position.y += Math.cos(t * 0.9) * 0.0002;
         }
 
-        // Camera feed proximity color grade shift
-        if (portalRootGroup) {
+        // Camera feed exposure adaptation: shifts like a real camera approaching light or dark slit
+        if (portalRootGroup && !state.isInsideRealm && dom.video) {
           const distToPortal = camera.position.distanceTo(portalRootGroup.position);
-          const prox = Math.max(0, Math.min(1, (2.6 - distToPortal) / 2.0));
-          if (!state.isInsideRealm && dom.video) {
-            const sepia = (prox * CONFIG.colorGradeStrength * 45).toFixed(1);
-            const contrast = (100 + prox * 10).toFixed(1);
-            dom.video.style.filter = `sepia(${sepia}%) contrast(${contrast}%)`;
+          if (!isShadow) {
+            // Radiant: room darkens around bright slit, highlights clip near it
+            const prox = Math.max(0, Math.min(1, (2.6 - distToPortal) / 2.2));
+            const exposure = (1.0 - prox * 0.35).toFixed(2);
+            const contrast = (100 + prox * 28).toFixed(1);
+            const sepia = (prox * 14).toFixed(1);
+            dom.video.style.filter = `brightness(${exposure}) contrast(${contrast}%) sepia(${sepia}%)`;
+          } else {
+            // Shadow: real room dims within about 1.5m
+            const shadowProx = Math.max(0, Math.min(1, (1.6 - distToPortal) / 1.5));
+            const exposure = (1.0 - shadowProx * 0.45).toFixed(2);
+            const contrast = (100 - shadowProx * 12).toFixed(1);
+            dom.video.style.filter = `brightness(${exposure}) contrast(${contrast}%)`;
           }
         }
 
@@ -2120,47 +2792,58 @@
           // Pass 1: Render Aperture Mask (writes 1 into stencil buffer)
           portalApertureMask.visible = true;
           otherWorldGroup.visible = false;
-          portalTornEdgeMesh.visible = false;
+          if (recedingLayersGroup) recedingLayersGroup.visible = false;
+          portalEdgeMesh.visible = false;
           if (portalRefractionMesh) portalRefractionMesh.visible = false;
-          floorDecalMesh.visible = false;
+          floorLightStreakMesh.visible = false;
+          floorLightPoolMesh.visible = false;
+          anamorphicStreakMesh.visible = false;
+          bloomSpriteMesh.visible = false;
           crossingParticles.visible = false;
-          fallingEmberParticles.visible = false;
           renderer.render(scene, camera);
 
           // Pass 2: Clear depth buffer for interior freedom
           renderer.clearDepth();
 
-          // Pass 3: Render Other World Interior (ONLY where stencil == 1)
+          // Pass 3: Render Other World Interior & Recessed Depth Layers (ONLY where stencil == 1)
           portalApertureMask.visible = false;
           otherWorldGroup.visible = true;
-          portalTornEdgeMesh.visible = false;
+          if (recedingLayersGroup) recedingLayersGroup.visible = true;
+          portalEdgeMesh.visible = false;
           renderer.render(scene, camera);
 
-          // Pass 4: Render Charred Rim, Refraction, Floor Decal & Crossing Particles (normal depth)
+          // Pass 4: Render Hairline Edge, Screen Warp, Floor Spills & Particles (normal depth)
           portalApertureMask.visible = false;
           otherWorldGroup.visible = false;
-          portalTornEdgeMesh.visible = true;
+          if (recedingLayersGroup) recedingLayersGroup.visible = false;
+          portalEdgeMesh.visible = true;
           if (portalRefractionMesh && state.currentTier !== 'low') portalRefractionMesh.visible = true;
-          floorDecalMesh.visible = true;
+          floorLightStreakMesh.visible = true;
+          floorLightPoolMesh.visible = true;
+          anamorphicStreakMesh.visible = (!isShadow && state.openingProgress > 0.05);
+          bloomSpriteMesh.visible = (!isShadow && state.openingProgress > 0.05);
           crossingParticles.visible = true;
-          fallingEmberParticles.visible = true;
           renderer.render(scene, camera);
 
           // Reset visibility flags
           portalApertureMask.visible = true;
           otherWorldGroup.visible = true;
+          if (recedingLayersGroup) recedingLayersGroup.visible = true;
         } else {
-          // Inside Realm: Render full atmospheric dark void
+          // Inside Realm: Render full atmospheric dark void looking back at the slit
           renderer.setClearColor(new THREE.Color(CONFIG.fogColor).getHex(), 1.0);
           renderer.clear(true, true, true);
 
           portalApertureMask.visible = false;
           otherWorldGroup.visible = true;
-          portalTornEdgeMesh.visible = true; // visible looking back at the tear
+          if (recedingLayersGroup) recedingLayersGroup.visible = false;
+          portalEdgeMesh.visible = true; // visible looking back at the slash
           if (portalRefractionMesh) portalRefractionMesh.visible = false;
-          floorDecalMesh.visible = false;
+          floorLightStreakMesh.visible = false;
+          floorLightPoolMesh.visible = false;
+          anamorphicStreakMesh.visible = false;
+          bloomSpriteMesh.visible = false;
           crossingParticles.visible = false;
-          fallingEmberParticles.visible = true;
           renderer.render(scene, camera);
         }
       }
@@ -2169,6 +2852,8 @@
        * 12. Experience Initiation & Lifecycle
        * ----------------------------------------------------------- */
       async function startExperience(forcePreview = false) {
+        state.isExperienceStarted = true;
+        resetHudInactivity();
         dom.startOverlay.classList.add('fade-out');
         dom.hud.classList.add('visible');
         hideError();
@@ -2186,6 +2871,7 @@
           dom.hudCam.textContent = 'DESKTOP VIEW';
           dom.hudMotion.textContent = 'DRAG ACTIVE';
           placePortalInFront(state.portalDistance);
+          triggerOpeningSequence();
           return;
         }
 
@@ -2198,6 +2884,7 @@
 
         await setupMotionSensors();
         placePortalInFront(state.portalDistance);
+        triggerOpeningSequence();
       }
 
       function handleCameraError(reason) {
@@ -2229,8 +2916,11 @@
       dom.btnStartAR.addEventListener('click', () => startExperience(false));
       dom.btnErrRetry.addEventListener('click', () => { hideError(); startExperience(false); });
       dom.btnErrPreview.addEventListener('click', () => { hideError(); startExperience(true); });
-      dom.btnReplace.addEventListener('click', () => placePortalInFront(state.portalDistance));
+      dom.btnReplace.addEventListener('click', () => triggerCloseAndReplace());
       dom.btnStep.addEventListener('click', () => triggerStepTransition());
+      if (dom.btnVariantToggle) {
+        dom.btnVariantToggle.addEventListener('click', toggleGateVariant);
+      }
 
       dom.scaleSlider.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
@@ -2249,11 +2939,48 @@
 
       dom.btnFullscreen.addEventListener('click', () => {
         if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
+          document.documentElement.requestFullscreen().catch(() => { });
         } else {
-          document.exitFullscreen().catch(() => {});
+          document.exitFullscreen().catch(() => { });
         }
       });
+
+      // --- Inactivity Auto-Fade (6 Seconds) ---
+      let hudIdleTimer = null;
+      function resetHudInactivity() {
+        if (dom.hud) {
+          dom.hud.classList.remove('idle-dim');
+        }
+        clearTimeout(hudIdleTimer);
+        hudIdleTimer = setTimeout(() => {
+          if (dom.hud && state.isExperienceStarted) {
+            dom.hud.classList.add('idle-dim');
+          }
+        }, 6000);
+      }
+
+      ['touchstart', 'touchmove', 'mousedown', 'mousemove', 'pointerdown'].forEach((evt) => {
+        window.addEventListener(evt, resetHudInactivity, { passive: true });
+      });
+
+      // --- Debug Drawer: URL param ?debug=1 or Long-Press (500ms) on telemetry ---
+      if (window.location.search.includes('debug=1')) {
+        if (dom.debugDrawer) dom.debugDrawer.style.display = 'block';
+      }
+
+      if (dom.hudTelemetry && dom.debugDrawer) {
+        let pressTimer = null;
+        dom.hudTelemetry.addEventListener('pointerdown', () => {
+          pressTimer = setTimeout(() => {
+            const isHidden = dom.debugDrawer.style.display === 'none';
+            dom.debugDrawer.style.display = isHidden ? 'block' : 'none';
+            if (navigator.vibrate) navigator.vibrate(35);
+          }, 500);
+        });
+        dom.hudTelemetry.addEventListener('pointerup', () => clearTimeout(pressTimer));
+        dom.hudTelemetry.addEventListener('pointercancel', () => clearTimeout(pressTimer));
+        dom.hudTelemetry.addEventListener('pointerleave', () => clearTimeout(pressTimer));
+      }
 
       if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
         const notice = document.getElementById('security-notice');
@@ -2271,4 +2998,5 @@
     })();
   </script>
 </body>
+
 </html>
