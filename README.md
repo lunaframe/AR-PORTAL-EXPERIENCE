@@ -180,5 +180,76 @@ To provide visual fidelity without stability risks:
 
 ---
 
+## ✦ Portal Tuning Guide (`PORTAL_CONFIG`)
+
+All visual, physical, lighting, and audio parameters for the dimensional tear are centralized in `window.PORTAL_CONFIG` at the top of the `<script>` tag in `index.html`:
+
+```javascript
+window.PORTAL_CONFIG = {
+  // 1. Edge & Silhouette
+  edgeRoughness: 0.16,           // Amplitude of FBM noise displacement on the opening silhouette (0.05 - 0.35)
+  edgeNoiseSpeed: 0.22,          // Slow evolution speed of the torn boundary
+  charredWidth: 0.09,            // Thickness of the dark soot / charred band just inside the tear
+  emberColor: '#c85a28',         // Color of the hot ember glow flickering in cracks only
+  emberCrackFrequency: 26.0,     // Frequency of procedural ember fractures
+  emberFlickerSpeed: 3.8,        // Speed of the ember glow oscillation
+  recedingLayers: 3,             // Number of offset wall layers behind opening for soft depth thickness
+  recedingDepthSpacing: 0.055,   // Distance in meters between receding wall layers
+
+  // 2. Refraction & Heat Distortion
+  distortionStrength: 0.012,     // Strength of camera video screen-space heat ripple (0.004 = subtle, 0.03 = intense)
+  distortionFrequency: 10.0,     // Frequency of heat ripple noise waves
+  chromaticAberration: 0.015,    // Color separation (R/G/B offset) towards the portal rim
+
+  // 3. Real-Room Lighting Interaction
+  lightPoolIntensity: 0.42,      // Opacity of projected floor light decal in front of portal
+  lightPoolRadius: 2.1,          // Forward reach of the floor light pool in meters
+  lightPoolColor: '#a88548',     // Floor decal light pool tint (muted aged brass / warm ember)
+  lightPoolFlickerSpeed: 1.8,    // Subtle breathing flicker rate of floor decal
+  colorGradeStrength: 0.32,      // Proximity camera feed shift towards portal accent (0.0 - 0.7)
+  vignetteStrength: 0.35,        // Edge darkening vignette intensity
+  filmGrainStrength: 0.045,      // Sensor grain strength unifying video and virtual layers
+
+  // 4. The Other World
+  fogDensity: 0.082,             // FogExp2 density of the interior realm
+  fogColor: '#09090b',           // Horizon fog color of the other world
+  fogLayers: 3,                  // Number of scrolling volumetric mist planes
+  fogScrollSpeed: 0.016,         // Scrolling speed of volumetric mist planes
+  parallaxLayers: 3,             // 3 depth silhouette layers (near basalt, mid ruins, far megaliths)
+  interiorParticleCount: 360,    // Drifting dust / spore motes inside realm
+  movingLightSpeed: 0.4,         // Orbiting speed of the dim interior highlight source
+  bioluminescencePulseSpeed: 1.2,// Pulse rate of sparse lichen / crystal accents
+  accentColor: '#b89758',        // Restrained aged brass accent color
+
+  // 5. Boundary Crossing Particles
+  crossingParticleCount: 40,     // Particles that drift OUT of the portal into the real room
+  crossingDriftSpeed: 0.22,      // Forward speed (m/s) into the user's physical space
+  fallingEmberCount: 20,         // Sparks along the torn edge falling under gravity
+
+  // 6. Step-Through Transition
+  transitionDuration: 1500,      // Duration of camera traversal in ms
+  fovPunchAmount: 10.0,          // Brief FOV expansion during traversal (degrees)
+
+  // 7. Spatial Audio
+  portalHumVolume: 0.22,         // Spatialized ambient hum volume (0.0 - 1.0)
+  pannerRefDistance: 1.2,        // Distance in meters for max volume
+  pannerMaxDistance: 10.0,       // Distance at which sound drops off
+
+  // 8. Quality Tier & Performance
+  qualityTier: 'high',           // 'high' | 'medium' | 'low'
+  autoDowngradeThreshold: 28     // FPS threshold below which quality automatically steps down
+};
+```
+
+### Main Parameters Explained
+- **`edgeRoughness`**: Controls how violently the portal boundary is torn. Higher values create more jagged, fractured fissures; lower values produce a smoother, calmer opening.
+- **`distortionStrength`**: Sets the screen-space ripple intensity sampling the rear camera video. Keep below `0.02` for realistic heat haze; values above `0.035` create heavy gravitational lensing.
+- **`lightPoolIntensity` & `lightPoolColor`**: Adjusts the ambient light thrown from the portal onto the user's floor. Matches the interior realm's warm aged-brass palette.
+- **`colorGradeStrength`**: How strongly the real camera feed shifts towards the portal's desaturated warm amber tone as the user gets within 2.5 meters.
+- **`crossingParticleCount`**: Number of embers and spores that drift forward through the tear into the physical room, fading as they travel.
+- **`qualityTier`**: `'high'` (full refraction, grain, 360+ particles, 3 fog layers), `'medium'` (simplified refraction, 200 particles), or `'low'` (no refraction, 120 particles, 1 fog plane, 1x DPR). Automatically steps down if frame rate falls below `autoDowngradeThreshold` (default 28 FPS).
+
+---
+
 ## ✦ License
 Created as part of the advanced WebXR AR Portal Experience. Distributed under the MIT License.

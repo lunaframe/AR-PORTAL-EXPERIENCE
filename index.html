@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0b0c" />
   <meta name="color-scheme" content="dark" />
-  <title>Threshold // AR Spatial Portal</title>
+  <title>Threshold // Physical Tear AR Portal</title>
 
   <!-- Typography: Space Grotesk (Editorial Headers) & JetBrains Mono (Telemetry/Readouts) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -19,7 +19,7 @@
   <style>
     :root {
       --bg: #0b0b0c;
-      --bg-panel: rgba(15, 15, 17, 0.92);
+      --bg-panel: rgba(15, 15, 17, 0.94);
       --bg-btn: #131316;
       --bg-btn-hover: #1c1c20;
       --text: #e5e2dc;
@@ -68,6 +68,7 @@
       z-index: 0;
       display: none;
       background: #000;
+      transition: filter 0.3s ease, opacity 0.5s ease;
     }
 
     #webgl-canvas {
@@ -78,6 +79,33 @@
       z-index: 1;
       display: block;
       touch-action: none;
+    }
+
+    /* Post Overlay (Vignette & Film Grain Texture) */
+    #film-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, transparent 55%, rgba(5, 5, 6, 0.75) 100%);
+      mix-blend-mode: multiply;
+      opacity: 0.85;
+      display: block;
+    }
+
+    #screen-flash {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: #e8e3d8;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    #screen-flash.flash {
+      opacity: 0.85;
+      transition: none;
     }
 
     /* Primary HUD Shell */
@@ -299,7 +327,7 @@
       border: 1px solid #0b0b0c;
     }
 
-    /* Start / Splash Screen: Asymmetric, Stark, Editorial */
+    /* Start / Splash Screen */
     #start-overlay {
       position: fixed;
       inset: 0;
@@ -482,7 +510,6 @@
       font-size: 10px;
     }
 
-    /* Custom SVGs */
     svg {
       display: block;
       flex-shrink: 0;
@@ -496,6 +523,10 @@
 
   <!-- WebGL Render Canvas -->
   <canvas id="webgl-canvas"></canvas>
+
+  <!-- Global Vignette & Camera Grain Texture Overlay -->
+  <div id="film-overlay"></div>
+  <div id="screen-flash"></div>
 
   <!-- Error & Diagnostic Notification Banner -->
   <div id="error-drawer">
@@ -519,38 +550,35 @@
   <!-- Start / Enter Screen -->
   <div id="start-overlay">
     <div class="brand-section">
-      <div class="kicker">Threshold Project // AR Subsystem</div>
-      <h1 class="headline">Dimensional<br/>Portal</h1>
+      <div class="kicker">Threshold Project // Physical Tear</div>
+      <h1 class="headline">Dimensional<br/>Rift</h1>
       <p class="description">
-        Projects a 3D stone monolith rift into physical space using WebXR hit testing or calibrated device orientation, revealing an atmospheric realm through stencil buffer aperture geometry.
+        Generates an irregular, torn physical rift in the room with charred boundaries, heat-haze refraction, volumetric fog, and atmospheric silhouettes receding through stencil aperture geometry.
       </p>
 
       <div class="spec-matrix">
         <div class="spec-row">
-          <span class="spec-name">Render Engine</span>
-          <span class="spec-status ready" id="spec-webgl">WebGL 2.0 / Stencil</span>
+          <span class="spec-name">Aperture Geometry</span>
+          <span class="spec-status ready" id="spec-webgl">FBM Torn Silhouette</span>
         </div>
         <div class="spec-row">
-          <span class="spec-name">Video Capture</span>
-          <span class="spec-status" id="spec-camera">Environment 1080p</span>
+          <span class="spec-name">Boundary FX</span>
+          <span class="spec-status" id="spec-camera">Heat Ripple & Embers</span>
         </div>
         <div class="spec-row">
-          <span class="spec-name">Orientation Link</span>
-          <span class="spec-status" id="spec-sensors">XR / Gyroscope</span>
+          <span class="spec-name">Room Light Decal</span>
+          <span class="spec-status" id="spec-sensors">Floor Pool & Grade Shift</span>
         </div>
         <div class="spec-row">
           <span class="spec-name">Audio Engine</span>
-          <span class="spec-status" id="spec-audio">Synthesizer (Muted)</span>
+          <span class="spec-status" id="spec-audio">HRTF Panner Synth</span>
         </div>
       </div>
     </div>
 
     <div class="start-actions">
       <button id="btn-start-ar" class="btn btn-brass btn-large">
-        Enter Spatial Portal
-      </button>
-      <button id="btn-start-preview" class="btn btn-large" style="display:none;" id="btn-webxr-option">
-        Enter WebXR Immersive-AR
+        Open Dimensional Rift
       </button>
       <div class="context-notice" id="security-notice">
         Note: Camera feed and motion sensors require a secure context (HTTPS or localhost). iOS Safari requires user gesture for permissions.
@@ -564,21 +592,21 @@
     <div class="hud-header">
       <div class="telemetry-block">
         <div class="telemetry-title">
-          <span>PORTAL // ARCH-01</span>
+          <span>PORTAL // PHYSICAL.TEAR</span>
           <span class="telemetry-tag" id="hud-realm-badge">[EXTERIOR]</span>
         </div>
         <div class="telemetry-line">
+          <span>TIER:</span>
+          <span class="telemetry-val accent" id="tier-val">HIGH [AUTO]</span>
+          <span style="opacity:0.3;">/</span>
           <span>FPS:</span>
           <span class="telemetry-val accent" id="fps-val">--</span>
-          <span style="opacity:0.3;">/</span>
-          <span>STAGE:</span>
-          <span class="telemetry-val" id="stage-val">INITIALIZING</span>
         </div>
         <div class="telemetry-line">
           <span>CAM:</span>
           <span class="telemetry-val" id="hud-cam">STANDBY</span>
           <span style="opacity:0.3;">/</span>
-          <span>GYRO:</span>
+          <span>MOTION:</span>
           <span class="telemetry-val" id="hud-motion">STANDBY</span>
         </div>
         <div class="telemetry-line">
@@ -589,7 +617,7 @@
 
       <!-- Top Right Actions -->
       <div class="top-controls">
-        <button id="btn-audio-toggle" class="btn btn-icon" title="Toggle Ambient Audio" aria-label="Toggle Audio">
+        <button id="btn-audio-toggle" class="btn btn-icon" title="Toggle Spatial Audio" aria-label="Toggle Audio">
           <svg id="svg-audio-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <line x1="23" y1="9" x2="17" y2="15"></line>
@@ -632,10 +660,70 @@
     </div>
   </div>
 
-  <!-- Application Logic -->
+  <!-- Master Application Script -->
   <script>
     (function () {
       'use strict';
+
+      /* =========================================================================
+       * MASTER CONFIGURATION OBJECT (Tune All Portal & Realm Parameters Here)
+       * ========================================================================= */
+      window.PORTAL_CONFIG = {
+        // --- 1. Portal Edge & Tear Geometry ---
+        edgeRoughness: 0.16,           // Amplitude of FBM noise displacement on the opening silhouette (0.05 - 0.35)
+        edgeNoiseSpeed: 0.22,          // Slow evolution speed of the torn boundary
+        charredWidth: 0.09,            // Thickness of the dark soot / charred band just inside the tear
+        emberColor: '#c85a28',         // Color of the hot ember glow flickering in cracks only
+        emberCrackFrequency: 26.0,     // Frequency of procedural ember fractures
+        emberFlickerSpeed: 3.8,        // Speed of the ember glow oscillation
+        recedingLayers: 3,             // Number of offset wall layers behind opening for soft depth thickness
+        recedingDepthSpacing: 0.055,   // Distance in meters between receding wall layers
+
+        // --- 2. Refraction & Heat Distortion ---
+        distortionStrength: 0.012,     // Strength of camera video screen-space heat ripple (0.004 = subtle, 0.03 = intense)
+        distortionFrequency: 10.0,     // Frequency of heat ripple noise waves
+        chromaticAberration: 0.015,    // Color separation (R/G/B offset) towards the portal rim
+
+        // --- 3. Light Interaction with the Real Room ---
+        lightPoolIntensity: 0.42,      // Opacity of projected floor light decal in front of portal
+        lightPoolRadius: 2.1,          // Forward reach of the floor light pool in meters
+        lightPoolColor: '#a88548',     // Floor decal light pool tint (muted aged brass / warm ember)
+        lightPoolFlickerSpeed: 1.8,    // Subtle breathing flicker rate of floor decal
+        colorGradeStrength: 0.32,      // Proximity camera feed shift towards portal accent (0.0 - 0.7)
+        vignetteStrength: 0.35,        // Edge darkening vignette intensity
+        filmGrainStrength: 0.045,      // Sensor grain strength unifying video and virtual layers
+
+        // --- 4. The Other World ---
+        fogDensity: 0.082,             // FogExp2 density of the interior realm
+        fogColor: '#09090b',           // Horizon fog color of the other world
+        fogLayers: 3,                  // Number of scrolling volumetric mist planes
+        fogScrollSpeed: 0.016,         // Scrolling speed of volumetric mist planes
+        parallaxLayers: 3,             // 3 depth silhouette layers (near basalt, mid ruins, far megaliths)
+        interiorParticleCount: 360,    // Drifting dust / spore motes inside realm
+        movingLightSpeed: 0.4,         // Orbiting speed of the dim interior highlight source
+        bioluminescencePulseSpeed: 1.2,// Pulse rate of sparse lichen / crystal accents
+        accentColor: '#b89758',        // Restrained aged brass accent color
+
+        // --- 5. Boundary Crossing Particles ---
+        crossingParticleCount: 40,     // Particles that drift OUT of the portal into the real room
+        crossingDriftSpeed: 0.22,      // Forward speed (m/s) into the user's physical space
+        fallingEmberCount: 20,         // Sparks along the torn edge falling under gravity
+
+        // --- 6. Step-Through Transition ---
+        transitionDuration: 1500,      // Duration of camera traversal in ms
+        fovPunchAmount: 10.0,          // Brief FOV expansion during traversal (degrees)
+
+        // --- 7. Audio ---
+        portalHumVolume: 0.22,         // Spatialized ambient hum volume (0.0 - 1.0)
+        pannerRefDistance: 1.2,        // Distance in meters for max volume
+        pannerMaxDistance: 10.0,       // Distance at which sound drops off
+
+        // --- 8. Quality Tier & Performance ---
+        qualityTier: 'high',           // 'high' | 'medium' | 'low'
+        autoDowngradeThreshold: 28     // FPS threshold below which quality automatically steps down
+      };
+
+      const CONFIG = window.PORTAL_CONFIG;
 
       /* -------------------------------------------------------------
        * 1. Application State & Constants
@@ -663,8 +751,16 @@
         dragStartY: 0,
         startYaw: 0,
         startPitch: 0,
-        // Gyro base offset
-        gyroBaseAlpha: null
+        // Gyro base offset & tilt
+        gyroAlpha: 0,
+        gyroBeta: 0,
+        gyroGamma: 0,
+        // Benchmark & Tier state
+        benchmarkFrames: 0,
+        benchmarkStart: 0,
+        benchmarkComplete: false,
+        lowFpsCount: 0,
+        currentTier: CONFIG.qualityTier
       };
 
       // DOM Elements
@@ -672,6 +768,8 @@
         video: document.getElementById('camera-video'),
         canvas: document.getElementById('webgl-canvas'),
         hud: document.getElementById('ui-hud'),
+        filmOverlay: document.getElementById('film-overlay'),
+        screenFlash: document.getElementById('screen-flash'),
         startOverlay: document.getElementById('start-overlay'),
         errorDrawer: document.getElementById('error-drawer'),
         errorTitle: document.getElementById('error-title'),
@@ -684,7 +782,7 @@
         scaleSlider: document.getElementById('scale-slider'),
         scaleNum: document.getElementById('scale-num'),
         fpsVal: document.getElementById('fps-val'),
-        stageVal: document.getElementById('stage-val'),
+        tierVal: document.getElementById('tier-val'),
         hudRealmBadge: document.getElementById('hud-realm-badge'),
         hudCam: document.getElementById('hud-cam'),
         hudMotion: document.getElementById('hud-motion'),
@@ -696,16 +794,18 @@
       };
 
       /* -------------------------------------------------------------
-       * 2. Web Audio Ambient Synthesizer
-       *    Synthesizes deep resonant ambient drone without external assets
+       * 2. Spatial Web Audio Engine with HRTF PannerNode
        * ----------------------------------------------------------- */
-      class AmbientAudioEngine {
+      class SpatialAudioEngine {
         constructor() {
           this.ctx = null;
+          this.panner = null;
           this.masterGain = null;
-          this.osc1 = null;
-          this.osc2 = null;
-          this.filter = null;
+          this.subDrone = null;
+          this.subDrone2 = null;
+          this.windNoise = null;
+          this.lowpassFilter = null;
+          this.rumbleGain = null;
           this.isPlaying = false;
         }
 
@@ -715,59 +815,105 @@
           if (!AudioContext) return;
           this.ctx = new AudioContext();
 
-          // Master volume gain
+          // Master Gain
           this.masterGain = this.ctx.createGain();
           this.masterGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
           this.masterGain.connect(this.ctx.destination);
 
-          // Low-pass resonant filter
-          this.filter = this.ctx.createBiquadFilter();
-          this.filter.type = 'lowpass';
-          this.filter.frequency.setValueAtTime(140, this.ctx.currentTime);
-          this.filter.Q.setValueAtTime(4.0, this.ctx.currentTime);
-          this.filter.connect(this.masterGain);
+          // Dynamic Lowpass Filter (muffles outside sounds when inside, and vice versa)
+          this.lowpassFilter = this.ctx.createBiquadFilter();
+          this.lowpassFilter.type = 'lowpass';
+          this.lowpassFilter.frequency.setValueAtTime(680, this.ctx.currentTime);
+          this.lowpassFilter.Q.setValueAtTime(3.0, this.ctx.currentTime);
+          this.lowpassFilter.connect(this.masterGain);
 
-          // Sub drone oscillators (55Hz A1 + 55.4Hz binaural detune)
-          this.osc1 = this.ctx.createOscillator();
-          this.osc1.type = 'sawtooth';
-          this.osc1.frequency.setValueAtTime(55, this.ctx.currentTime);
+          // 3D Spatial PannerNode
+          this.panner = this.ctx.createPanner();
+          this.panner.panningModel = 'HRTF';
+          this.panner.distanceModel = 'inverse';
+          this.panner.refDistance = CONFIG.pannerRefDistance;
+          this.panner.maxDistance = CONFIG.pannerMaxDistance;
+          this.panner.rolloffFactor = 1.35;
+          this.panner.connect(this.lowpassFilter);
 
-          this.osc2 = this.ctx.createOscillator();
-          this.osc2.type = 'sine';
-          this.osc2.frequency.setValueAtTime(55.4, this.ctx.currentTime);
+          // Sub-bass drones (55Hz and 55.35Hz binaural harmonic)
+          this.subDrone = this.ctx.createOscillator();
+          this.subDrone.type = 'sawtooth';
+          this.subDrone.frequency.setValueAtTime(55, this.ctx.currentTime);
 
-          // Low-frequency LFO filter sweep (0.12Hz)
+          this.subDrone2 = this.ctx.createOscillator();
+          this.subDrone2.type = 'sine';
+          this.subDrone2.frequency.setValueAtTime(55.35, this.ctx.currentTime);
+
+          // Low-frequency LFO for subtle drone resonance breathing
           const lfo = this.ctx.createOscillator();
-          lfo.frequency.setValueAtTime(0.12, this.ctx.currentTime);
+          lfo.frequency.setValueAtTime(0.14, this.ctx.currentTime);
           const lfoGain = this.ctx.createGain();
-          lfoGain.gain.setValueAtTime(40, this.ctx.currentTime);
+          lfoGain.gain.setValueAtTime(35, this.ctx.currentTime);
           lfo.connect(lfoGain);
-          lfoGain.connect(this.filter.frequency);
+          lfoGain.connect(this.lowpassFilter.frequency);
           lfo.start();
 
-          // Subtle noise generator for cavernous wind texture
+          // Cavernous wind noise buffer
           const bufferSize = this.ctx.sampleRate * 2;
           const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-          const output = noiseBuffer.getChannelData(0);
+          const out = noiseBuffer.getChannelData(0);
           for (let i = 0; i < bufferSize; i++) {
-            output[i] = (Math.random() * 2 - 1) * 0.06;
+            out[i] = (Math.random() * 2 - 1) * 0.055;
           }
-          const whiteNoise = this.ctx.createBufferSource();
-          whiteNoise.buffer = noiseBuffer;
-          whiteNoise.loop = true;
-          whiteNoise.start();
+          this.windNoise = this.ctx.createBufferSource();
+          this.windNoise.buffer = noiseBuffer;
+          this.windNoise.loop = true;
+          this.windNoise.start();
 
-          const noiseFilter = this.ctx.createBiquadFilter();
-          noiseFilter.type = 'bandpass';
-          noiseFilter.frequency.setValueAtTime(120, this.ctx.currentTime);
-          noiseFilter.Q.setValueAtTime(1.5, this.ctx.currentTime);
-          whiteNoise.connect(noiseFilter);
-          noiseFilter.connect(this.masterGain);
+          const windBandpass = this.ctx.createBiquadFilter();
+          windBandpass.type = 'bandpass';
+          windBandpass.frequency.setValueAtTime(115, this.ctx.currentTime);
+          windBandpass.Q.setValueAtTime(2.0, this.ctx.currentTime);
+          this.windNoise.connect(windBandpass);
+          windBandpass.connect(this.panner);
 
-          this.osc1.connect(this.filter);
-          this.osc2.connect(this.filter);
-          this.osc1.start();
-          this.osc2.start();
+          // Step rumble burst gain
+          this.rumbleGain = this.ctx.createGain();
+          this.rumbleGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
+          const rumbleOsc = this.ctx.createOscillator();
+          rumbleOsc.type = 'triangle';
+          rumbleOsc.frequency.setValueAtTime(38, this.ctx.currentTime);
+          rumbleOsc.connect(this.rumbleGain);
+          this.rumbleGain.connect(this.masterGain);
+          rumbleOsc.start();
+
+          this.subDrone.connect(this.panner);
+          this.subDrone2.connect(this.panner);
+          this.subDrone.start();
+          this.subDrone2.start();
+        }
+
+        updateListener(cam, portalPos) {
+          if (!this.ctx || !this.isPlaying) return;
+          const now = this.ctx.currentTime;
+
+          // Update AudioListener 3D position & orientation
+          if (this.ctx.listener.positionX) {
+            this.ctx.listener.positionX.setValueAtTime(cam.position.x, now);
+            this.ctx.listener.positionY.setValueAtTime(cam.position.y, now);
+            this.ctx.listener.positionZ.setValueAtTime(cam.position.z, now);
+            const dir = new THREE.Vector3();
+            cam.getWorldDirection(dir);
+            this.ctx.listener.forwardX.setValueAtTime(dir.x, now);
+            this.ctx.listener.forwardY.setValueAtTime(dir.y, now);
+            this.ctx.listener.forwardZ.setValueAtTime(dir.z, now);
+            this.ctx.listener.upX.setValueAtTime(0, now);
+            this.ctx.listener.upY.setValueAtTime(1, now);
+            this.ctx.listener.upZ.setValueAtTime(0, now);
+          }
+
+          // Update Panner 3D position
+          if (this.panner && portalPos) {
+            this.panner.positionX.setValueAtTime(portalPos.x, now);
+            this.panner.positionY.setValueAtTime(portalPos.y + 1.2, now);
+            this.panner.positionZ.setValueAtTime(portalPos.z, now);
+          }
         }
 
         toggle() {
@@ -782,7 +928,7 @@
           if (!this.isPlaying) {
             this.masterGain.gain.cancelScheduledValues(now);
             this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
-            this.masterGain.gain.exponentialRampToValueAtTime(0.24, now + 0.8);
+            this.masterGain.gain.exponentialRampToValueAtTime(CONFIG.portalHumVolume, now + 0.6);
             this.isPlaying = true;
           } else {
             this.masterGain.gain.cancelScheduledValues(now);
@@ -793,51 +939,107 @@
           return this.isPlaying;
         }
 
-        setRealmState(isInside) {
-          if (!this.ctx || !this.filter) return;
+        triggerRumble() {
+          if (!this.ctx || !this.isPlaying) return;
           const now = this.ctx.currentTime;
-          const targetFreq = isInside ? 260 : 130;
-          this.filter.frequency.cancelScheduledValues(now);
-          this.filter.frequency.setTargetAtTime(targetFreq, now, 0.4);
+          this.rumbleGain.gain.cancelScheduledValues(now);
+          this.rumbleGain.gain.setValueAtTime(0.35, now);
+          this.rumbleGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+        }
+
+        setRealmState(isInside) {
+          if (!this.ctx || !this.lowpassFilter) return;
+          const now = this.ctx.currentTime;
+          const targetFreq = isInside ? 3800 : 720;
+          this.lowpassFilter.frequency.cancelScheduledValues(now);
+          this.lowpassFilter.frequency.setTargetAtTime(targetFreq, now, 0.5);
         }
       }
 
-      const audio = new AmbientAudioEngine();
+      const audio = new SpatialAudioEngine();
 
       /* -------------------------------------------------------------
-       * 3. Three.js Core Setup (Camera, Scene, Renderer)
+       * 3. Shared GLSL Noise Functions & Core Shaders
+       * ----------------------------------------------------------- */
+      const GLSL_COMMON_NOISE = `
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }
+        
+        float snoise(vec2 v) {
+          const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+          vec2 i  = floor(v + dot(v, C.yy));
+          vec2 x0 = v - i + dot(i, C.xx);
+          vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+          vec4 x12 = x0.xyxy + C.xxzz;
+          x12.xy -= i1;
+          i = mod289(i);
+          vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+          vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+          m = m * m;
+          m = m * m;
+          vec3 x = 2.0 * fract(p * C.www) - 1.0;
+          vec3 h = abs(x) - 0.5;
+          vec3 ox = floor(x + 0.5);
+          vec3 a0 = x - ox;
+          m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+          vec3 g;
+          g.x  = a0.x * x0.x + h.x * x0.y;
+          g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+          return 130.0 * dot(m, g);
+        }
+
+        float fbm(vec2 p) {
+          float v = 0.0;
+          v += 0.5000 * snoise(p); p *= 2.02;
+          v += 0.2500 * snoise(p); p *= 2.03;
+          v += 0.1250 * snoise(p);
+          return v;
+        }
+
+        // Calculates normalized distance to an irregular, torn physical rift
+        float calculateTornRiftDist(vec2 pos, float time, float roughness) {
+          vec2 p = pos - vec2(0.0, 1.15);
+          float baseDist = length(vec2(p.x / 0.52, p.y / 1.02));
+          float angle = atan(p.y, p.x);
+          float displacement = fbm(vec2(angle * 1.8, time * CONFIG.edgeNoiseSpeed)) * roughness +
+                               snoise(pos * 3.4 + vec2(0.0, time * 0.25)) * (roughness * 0.45);
+          return baseDist + displacement;
+        }
+      `;
+
+      /* -------------------------------------------------------------
+       * 4. Three.js Core Setup (Scene, Camera, Renderer)
        * ----------------------------------------------------------- */
       let scene, camera, renderer;
-      let portalRootGroup;     // Positioned in space
-      let portalFrameGroup;    // Exterior stone arch & frame
-      let portalApertureMask;  // Stencil mask mesh
-      let portalEdgeMesh;      // Subtle animated rift distortion shader
-      let otherWorldGroup;     // Interior foggy realm meshes
-      let particlesMesh;       // Floating particles inside realm
-      let riftMaterial;        // Custom GLSL shader material
-      let floorShadowMesh;
+      let videoTexture = null;
+      let portalRootGroup;
+      let portalApertureMask;
+      let portalTornEdgeMesh;
+      let portalRefractionMesh;
+      let floorDecalMesh;
+      let otherWorldGroup;
+      let interiorParticles;
+      let crossingParticles;
+      let fallingEmberParticles;
+      let fogPlanesGroup;
+      let parallaxSilhouettesGroup;
+      let dimMovingLight;
 
-      // Pre-allocated math objects to avoid garbage collection
-      const tempVec3 = new THREE.Vector3();
-      const tempQuat = new THREE.Quaternion();
       const outsideTargetPos = new THREE.Vector3();
       const insideTargetPos = new THREE.Vector3();
 
       function initThree() {
-        // Scene
         scene = new THREE.Scene();
-
-        // Perspective Camera
         camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.05, 100);
-        camera.position.set(0, 1.4, 0); // eye level at 1.4m
+        camera.position.set(0, 1.4, 0);
 
-        // WebGL Renderer with Stencil Buffer & Alpha
         try {
           renderer = new THREE.WebGLRenderer({
             canvas: dom.canvas,
             alpha: true,
             antialias: true,
-            stencil: true, // Crucial for portal masking
+            stencil: true,
             powerPreference: 'high-performance',
             preserveDrawingBuffer: false
           });
@@ -847,23 +1049,41 @@
         }
 
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        renderer.autoClear = false; // Manual multi-pass clear for stencil logic
+        applyQualityTier(state.currentTier);
+        renderer.autoClear = false;
 
-        // Build 3D world elements
-        buildPortalWorld();
+        // Create Video Texture for live camera refraction
+        if (dom.video) {
+          videoTexture = new THREE.VideoTexture(dom.video);
+          videoTexture.minFilter = THREE.LinearFilter;
+          videoTexture.magFilter = THREE.LinearFilter;
+          videoTexture.format = THREE.RGBAFormat;
+        }
 
-        // Setup resize handling
+        buildPhysicalTearWorld();
+
         window.addEventListener('resize', onResize);
-        window.addEventListener('orientationchange', () => {
-          setTimeout(onResize, 120);
-        });
-
-        // Initialize drag interaction
+        window.addEventListener('orientationchange', () => setTimeout(onResize, 120));
         initDragControls();
 
-        dom.stageVal.textContent = 'WEBGL READY';
         return true;
+      }
+
+      function applyQualityTier(tier) {
+        state.currentTier = tier;
+        dom.tierVal.textContent = `${tier.toUpperCase()} [AUTO]`;
+
+        let dpr = 2.0;
+        if (tier === 'low') dpr = 1.0;
+        else if (tier === 'medium') dpr = 1.5;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dpr));
+
+        if (portalRefractionMesh) {
+          portalRefractionMesh.visible = (tier !== 'low');
+        }
+        if (dom.filmOverlay) {
+          dom.filmOverlay.style.display = (tier === 'low') ? 'none' : 'block';
+        }
       }
 
       function onResize() {
@@ -873,159 +1093,30 @@
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
         renderer.setSize(width, height);
+
+        if (portalRefractionMesh && portalRefractionMesh.material.uniforms) {
+          portalRefractionMesh.material.uniforms.uResolution.value.set(width, height);
+        }
       }
 
       /* -------------------------------------------------------------
-       * 4. 3D Procedural Stone Arch & Stencil Aperture Construction
+       * 5. Procedural Physical Tear, Charred Borders, Refraction & Receding Depth
        * ----------------------------------------------------------- */
-      function buildPortalWorld() {
+      function buildPhysicalTearWorld() {
         portalRootGroup = new THREE.Group();
-        portalFrameGroup = new THREE.Group();
         otherWorldGroup = new THREE.Group();
-
         scene.add(portalRootGroup);
-        portalRootGroup.add(portalFrameGroup);
         scene.add(otherWorldGroup);
 
-        // --- A. PORTAL APERTURE STENCIL MASK ---
-        // Arch dimensions: width 1.2m, straight height 1.7m, arch radius 0.6m, total height 2.3m
-        const archWidth = 1.2;
-        const archRectHeight = 1.65;
-        const archRadius = 0.6;
+        // Plane geometry for torn boundary shaders
+        const riftPlaneGeo = new THREE.PlaneGeometry(1.65, 2.7, 72, 72);
 
-        const apertureShape = new THREE.Shape();
-        apertureShape.moveTo(-archRadius, 0);
-        apertureShape.lineTo(archRadius, 0);
-        apertureShape.lineTo(archRadius, archRectHeight);
-        apertureShape.absarc(0, archRectHeight, archRadius, 0, Math.PI, false);
-        apertureShape.lineTo(-archRadius, 0);
-
-        const apertureGeo = new THREE.ShapeGeometry(apertureShape, 32);
-
-        // Stencil mask material: writes 1 to stencil buffer, no color, no depth
-        const maskMaterial = new THREE.MeshBasicMaterial({
-          colorWrite: false,
-          depthWrite: false,
-          stencilWrite: true,
-          stencilRef: 1,
-          stencilFunc: THREE.AlwaysStencilFunc,
-          stencilZPass: THREE.ReplaceStencilOp,
-          side: THREE.FrontSide
-        });
-
-        portalApertureMask = new THREE.Mesh(apertureGeo, maskMaterial);
-        portalApertureMask.position.set(0, 0, 0);
-        portalRootGroup.add(portalApertureMask);
-
-        // --- B. STONE ARCHWAY FRAME (Rough Chiseled Dark Monolith Blocks) ---
-        const stoneMaterial = new THREE.MeshStandardMaterial({
-          color: 0x18181b,
-          roughness: 0.92,
-          metalness: 0.08,
-          stencilWrite: false
-        });
-
-        const stoneAccentMaterial = new THREE.MeshStandardMaterial({
-          color: 0x222226,
-          roughness: 0.88,
-          metalness: 0.12,
-          stencilWrite: false
-        });
-
-        // Left & Right Pillars composed of dry-stacked stone monolith blocks
-        const blockHeights = [0.42, 0.44, 0.40, 0.44];
-        let currentY = 0;
-
-        for (let i = 0; i < blockHeights.length; i++) {
-          const bh = blockHeights[i];
-          const bw = 0.32 + (Math.sin(i * 1.7) * 0.02);
-          const bd = 0.38 + (Math.cos(i * 1.3) * 0.02);
-          const blockGeo = new THREE.BoxGeometry(bw, bh, bd);
-
-          // Left block
-          const leftBlock = new THREE.Mesh(blockGeo, (i % 2 === 0) ? stoneMaterial : stoneAccentMaterial);
-          leftBlock.position.set(-archRadius - bw * 0.46, currentY + bh * 0.5, 0);
-          leftBlock.rotation.y = (Math.sin(i) * 0.04);
-          portalFrameGroup.add(leftBlock);
-
-          // Right block
-          const rightBlock = new THREE.Mesh(blockGeo, (i % 2 === 1) ? stoneMaterial : stoneAccentMaterial);
-          rightBlock.position.set(archRadius + bw * 0.46, currentY + bh * 0.5, 0);
-          rightBlock.rotation.y = (Math.cos(i) * -0.04);
-          portalFrameGroup.add(rightBlock);
-
-          currentY += bh;
-        }
-
-        // Arch Voussoirs (11 curved wedge blocks forming the stone arch top)
-        const voussoirCount = 11;
-        for (let i = 0; i < voussoirCount; i++) {
-          const t = i / (voussoirCount - 1);
-          const angle = Math.PI - t * Math.PI; // from PI down to 0
-          const r = archRadius + 0.16;
-          const isKeystone = (i === Math.floor(voussoirCount / 2));
-
-          const vW = isKeystone ? 0.34 : 0.24;
-          const vH = isKeystone ? 0.38 : 0.30;
-          const vD = isKeystone ? 0.42 : 0.36;
-
-          const vGeo = new THREE.BoxGeometry(vW, vH, vD);
-          const vMesh = new THREE.Mesh(vGeo, isKeystone ? stoneAccentMaterial : stoneMaterial);
-
-          vMesh.position.set(
-            Math.cos(angle) * r,
-            archRectHeight + Math.sin(angle) * r,
-            isKeystone ? 0.02 : 0
-          );
-          vMesh.rotation.z = angle - Math.PI / 2;
-          portalFrameGroup.add(vMesh);
-        }
-
-        // Threshold base stone slab
-        const baseGeo = new THREE.BoxGeometry(archWidth + 0.9, 0.05, 0.7);
-        const baseMesh = new THREE.Mesh(baseGeo, stoneAccentMaterial);
-        baseMesh.position.set(0, 0.025, 0);
-        portalFrameGroup.add(baseMesh);
-
-        // Subtle grounding contact shadow disc on the floor
-        const shadowGeo = new THREE.PlaneGeometry(2.4, 1.2);
-        const shadowMat = new THREE.MeshBasicMaterial({
-          color: 0x000000,
-          transparent: true,
-          opacity: 0.55,
-          depthWrite: false
-        });
-        floorShadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-        floorShadowMesh.rotation.x = -Math.PI / 2;
-        floorShadowMesh.position.set(0, 0.005, 0);
-        portalFrameGroup.add(floorShadowMesh);
-
-        // --- C. ANIMATED RIFT EDGE DISTORTION (Subtle dark atmospheric fray) ---
-        // A thin inner ribbon with custom GLSL noise displacement
-        const riftShape = new THREE.Shape();
-        riftShape.moveTo(-archRadius, 0);
-        riftShape.lineTo(archRadius, 0);
-        riftShape.lineTo(archRadius, archRectHeight);
-        riftShape.absarc(0, archRectHeight, archRadius, 0, Math.PI, false);
-        riftShape.lineTo(-archRadius, 0);
-
-        // Inner cutout hole for ribbon
-        const riftHole = new THREE.Path();
-        const holeR = archRadius - 0.09;
-        const holeH = archRectHeight - 0.03;
-        riftHole.moveTo(-holeR, 0.02);
-        riftHole.lineTo(holeR, 0.02);
-        riftHole.lineTo(holeR, holeH);
-        riftHole.absarc(0, holeH, holeR, 0, Math.PI, false);
-        riftHole.lineTo(-holeR, 0.02);
-        riftShape.holes.push(riftHole);
-
-        const riftGeo = new THREE.ShapeGeometry(riftShape, 32);
-
-        riftMaterial = new THREE.ShaderMaterial({
+        // --- A. APERTURE STENCIL MASK WITH DISCARDED TORN BOUNDARY ---
+        // Writes 1 to the stencil buffer ONLY inside the irregular torn silhouette
+        const maskShaderMaterial = new THREE.ShaderMaterial({
           uniforms: {
             uTime: { value: 0 },
-            uColor: { value: new THREE.Color(0xb89758) } // Aged brass accent
+            uRoughness: { value: CONFIG.edgeRoughness }
           },
           vertexShader: `
             varying vec2 vUv;
@@ -1038,30 +1129,87 @@
           `,
           fragmentShader: `
             uniform float uTime;
-            uniform vec3 uColor;
+            uniform float uRoughness;
             varying vec2 vUv;
             varying vec3 vPos;
-
-            // Simple pseudo-random hash & value noise
-            float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-            float noise(vec2 p) {
-              vec2 i = floor(p); vec2 f = fract(p);
-              f = f * f * (3.0 - 2.0 * f);
-              return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-                         mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-            }
+            ${GLSL_COMMON_NOISE}
 
             void main() {
-              float n = noise(vPos.xy * 6.0 - vec2(0.0, uTime * 0.9));
-              float n2 = noise(vPos.xy * 14.0 + vec2(uTime * 0.4, 0.0));
-              float combined = n * 0.7 + n2 * 0.3;
+              float d = calculateTornRiftDist(vPos.xy, uTime, uRoughness);
+              if (d > 1.0) {
+                discard; // Crucial: Discarded fragments do NOT update the stencil buffer!
+              }
+              gl_FragColor = vec4(0.0);
+            }
+          `,
+          colorWrite: false,
+          depthWrite: false,
+          stencilWrite: true,
+          stencilRef: 1,
+          stencilFunc: THREE.AlwaysStencilFunc,
+          stencilZPass: THREE.ReplaceStencilOp,
+          side: THREE.DoubleSide
+        });
 
-              // Dark rift boundary with faint brass fringing
-              vec3 darkVoid = vec3(0.04, 0.04, 0.05);
-              vec3 col = mix(darkVoid, uColor, combined * 0.35);
+        portalApertureMask = new THREE.Mesh(riftPlaneGeo, maskShaderMaterial);
+        portalApertureMask.position.set(0, 0, 0);
+        portalRootGroup.add(portalApertureMask);
 
-              float alpha = smoothstep(0.15, 0.85, combined) * 0.65;
-              gl_FragColor = vec4(col, alpha);
+        // --- B. CHARRED TORN RIM & FLICKERING EMBERS WITH RECEDING THICKNESS ---
+        // Renders charred rock, burning ember fractures, and receding interior wall layers
+        const tornEdgeMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uRoughness: { value: CONFIG.edgeRoughness },
+            uCharredWidth: { value: CONFIG.charredWidth },
+            uEmberColor: { value: new THREE.Color(CONFIG.emberColor) },
+            uAccentColor: { value: new THREE.Color(CONFIG.accentColor) },
+            uLayerDepth: { value: 0.0 }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            varying vec3 vPos;
+            void main() {
+              vUv = uv;
+              vPos = position;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float uTime;
+            uniform float uRoughness;
+            uniform float uCharredWidth;
+            uniform vec3 uEmberColor;
+            uniform vec3 uAccentColor;
+            uniform float uLayerDepth;
+            varying vec2 vUv;
+            varying vec3 vPos;
+            ${GLSL_COMMON_NOISE}
+
+            void main() {
+              float d = calculateTornRiftDist(vPos.xy, uTime, uRoughness);
+
+              // Inside opening: transparent to reveal the other world
+              if (d < (1.0 - uCharredWidth)) {
+                discard;
+              }
+
+              // Charred boundary: soot black with hot ember cracks
+              float crack = snoise(vPos.xy * CONFIG.emberCrackFrequency + vec2(uTime * 0.5, -uTime * 0.3));
+              float emberFlicker = 0.5 + 0.5 * sin(uTime * CONFIG.emberFlickerSpeed + vPos.y * 12.0);
+              float inCrack = smoothstep(0.48, 0.78, crack) * emberFlicker;
+
+              // Dark charred soot base with depth tinting
+              vec3 soot = mix(vec3(0.04, 0.04, 0.045), vec3(0.02, 0.02, 0.025), uLayerDepth);
+              vec3 emberTone = mix(soot, uEmberColor, inCrack * 0.9);
+
+              // Soft outer feathering over camera background to avoid aliasing lines
+              float outerAlpha = smoothstep(1.08, 0.99, d);
+              float innerAlpha = smoothstep((1.0 - uCharredWidth), (1.0 - uCharredWidth + 0.025), d);
+              float alpha = innerAlpha * outerAlpha;
+
+              if (alpha < 0.01) discard;
+              gl_FragColor = vec4(emberTone, alpha);
             }
           `,
           transparent: true,
@@ -1069,154 +1217,509 @@
           side: THREE.DoubleSide
         });
 
-        portalEdgeMesh = new THREE.Mesh(riftGeo, riftMaterial);
-        portalEdgeMesh.position.set(0, 0, 0.01);
-        portalFrameGroup.add(portalEdgeMesh);
+        // Front charred frame
+        portalTornEdgeMesh = new THREE.Mesh(riftPlaneGeo, tornEdgeMaterial);
+        portalTornEdgeMesh.position.set(0, 0, 0.005);
+        portalRootGroup.add(portalTornEdgeMesh);
 
-        // --- D. THE OTHER WORLD (Rendered inside the stencil buffer) ---
-        buildOtherWorldInterior();
+        // Receding thickness layers behind opening
+        for (let i = 1; i <= CONFIG.recedingLayers; i++) {
+          const depthMat = tornEdgeMaterial.clone();
+          depthMat.uniforms.uLayerDepth.value = i / CONFIG.recedingLayers;
+          const layerMesh = new THREE.Mesh(riftPlaneGeo, depthMat);
+          const zOffset = -i * CONFIG.recedingDepthSpacing;
+          const scaleShrink = 1.0 - (i * 0.035);
+          layerMesh.position.set(0, 0, zOffset);
+          layerMesh.scale.set(scaleShrink, scaleShrink, 1.0);
+          portalRootGroup.add(layerMesh);
+        }
 
-        // Place initial portal in front
+        // --- C. LIVE CAMERA HEAT DISTORTION & CHROMATIC ABERRATION ---
+        const refractionGeo = new THREE.PlaneGeometry(2.0, 3.05, 48, 48);
+        const refractionMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uVideoTexture: { value: videoTexture },
+            uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+            uRoughness: { value: CONFIG.edgeRoughness },
+            uDistortionStrength: { value: CONFIG.distortionStrength },
+            uAberration: { value: CONFIG.chromaticAberration }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            varying vec3 vPos;
+            void main() {
+              vUv = uv;
+              vPos = position;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float uTime;
+            uniform sampler2D uVideoTexture;
+            uniform vec2 uResolution;
+            uniform float uRoughness;
+            uniform float uDistortionStrength;
+            uniform float uAberration;
+            varying vec2 vUv;
+            varying vec3 vPos;
+            ${GLSL_COMMON_NOISE}
+
+            void main() {
+              float d = calculateTornRiftDist(vPos.xy, uTime, uRoughness);
+
+              // Narrow refraction band outside the torn rim (1.0 to 1.28)
+              if (d < 1.0 || d > 1.28) {
+                discard;
+              }
+
+              vec2 screenUv = gl_FragCoord.xy / uResolution;
+
+              // Heat-haze ripple noise
+              vec2 ripple = vec2(
+                snoise(vPos.xy * CONFIG.distortionFrequency + vec2(uTime * 1.6, 0.0)),
+                snoise(vPos.xy * CONFIG.distortionFrequency + vec2(0.0, uTime * 1.6))
+              ) * uDistortionStrength;
+
+              // Falloff towards outer edge
+              float bandFalloff = smoothstep(1.0, 1.05, d) * smoothstep(1.28, 1.10, d);
+              ripple *= bandFalloff;
+
+              // Chromatic aberration (separate R/G/B samples)
+              float r = texture2D(uVideoTexture, screenUv + ripple * (1.0 + uAberration)).r;
+              float g = texture2D(uVideoTexture, screenUv + ripple).g;
+              float b = texture2D(uVideoTexture, screenUv + ripple * (1.0 - uAberration)).b;
+
+              gl_FragColor = vec4(r, g, b, bandFalloff * 0.75);
+            }
+          `,
+          transparent: true,
+          depthWrite: false
+        });
+
+        portalRefractionMesh = new THREE.Mesh(refractionGeo, refractionMaterial);
+        portalRefractionMesh.position.set(0, 0, 0.008);
+        portalRootGroup.add(portalRefractionMesh);
+
+        // --- D. FLOOR LIGHT POOL DECAL ---
+        // Casts soft tinted light from the portal onto the real room's floor plane
+        const floorDecalGeo = new THREE.PlaneGeometry(2.6, 3.2);
+        const floorDecalMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uColor: { value: new THREE.Color(CONFIG.lightPoolColor) },
+            uIntensity: { value: CONFIG.lightPoolIntensity }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float uTime;
+            uniform vec3 uColor;
+            uniform float uIntensity;
+            varying vec2 vUv;
+
+            void main() {
+              // Projected ellipse extending forward (+Z) in front of the portal
+              vec2 p = vUv - vec2(0.5, 0.2);
+              float dist = length(vec2(p.x * 1.1, p.y * 0.65));
+              float flicker = 0.85 + 0.15 * (sin(uTime * CONFIG.lightPoolFlickerSpeed) * cos(uTime * 2.3));
+              float alpha = smoothstep(0.55, 0.02, dist) * uIntensity * flicker;
+
+              if (alpha < 0.005) discard;
+              gl_FragColor = vec4(uColor, alpha);
+            }
+          `,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        floorDecalMesh = new THREE.Mesh(floorDecalGeo, floorDecalMaterial);
+        floorDecalMesh.rotation.x = -Math.PI / 2;
+        floorDecalMesh.position.set(0, 0.004, 1.2);
+        portalRootGroup.add(floorDecalMesh);
+
+        // --- E. THE OTHER WORLD REALM ---
+        buildOtherWorldAtmosphere();
+
+        // --- F. PARTICLES CROSSING THE THRESHOLD & EDGE SPARKS ---
+        buildBoundaryCrossingParticles();
+
         placePortalInFront(state.portalDistance);
       }
 
-      function buildOtherWorldInterior() {
-        // Interior materials must be flagged with stencil testing:
-        // Render ONLY where stencil buffer is 1 (the doorway aperture)
-        const interiorStoneMat = new THREE.MeshStandardMaterial({
-          color: 0x111113,
-          roughness: 0.9,
-          metalness: 0.15,
+      /* -------------------------------------------------------------
+       * 6. The Other World (Volumetric Fog, Parallax Silhouettes & Drifting Motes)
+       * ----------------------------------------------------------- */
+      function buildOtherWorldAtmosphere() {
+        // Interior material stencil setup
+        const basaltFloorMat = new THREE.MeshStandardMaterial({
+          color: 0x0f0f12,
+          roughness: 0.92,
+          metalness: 0.18,
           stencilWrite: true,
           stencilRef: 1,
           stencilFunc: THREE.EqualStencilFunc
         });
 
-        const interiorMonolithMat = new THREE.MeshStandardMaterial({
-          color: 0x1a1a1d,
-          roughness: 0.85,
-          metalness: 0.2,
-          stencilWrite: true,
-          stencilRef: 1,
-          stencilFunc: THREE.EqualStencilFunc
-        });
-
-        // 1. Vast dark basalt stone floor
+        // 1. Basalt Flagstone Floor
         const floorGeo = new THREE.PlaneGeometry(60, 60);
-        const floorMesh = new THREE.Mesh(floorGeo, interiorStoneMat);
-        floorMesh.rotation.x = -Math.PI / 2;
-        floorMesh.position.set(0, 0, -15);
-        otherWorldGroup.add(floorMesh);
+        const floor = new THREE.Mesh(floorGeo, basaltFloorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.set(0, 0, -15);
+        otherWorldGroup.add(floor);
 
-        // 2. Distant Ancient Weathered Monolith Spires in the Fog
-        const monolithSpireGeo = new THREE.BoxGeometry(0.7, 5.0, 0.7);
-        const spireCount = 26;
+        // 2. Volumetric Scrolling Fog Planes
+        fogPlanesGroup = new THREE.Group();
+        otherWorldGroup.add(fogPlanesGroup);
 
-        for (let i = 0; i < spireCount; i++) {
-          const spire = new THREE.Mesh(monolithSpireGeo, interiorMonolithMat);
-          const angle = (i / spireCount) * Math.PI * 1.6 - (Math.PI * 0.8);
-          const dist = 4.0 + (i % 6) * 3.5;
-          const x = Math.sin(angle) * dist + (Math.sin(i * 3.2) * 2.0);
-          const z = -Math.cos(angle) * dist - 3.0;
-          const heightScale = 0.8 + (Math.cos(i) * 0.5);
+        const fogPlaneGeo = new THREE.PlaneGeometry(24, 12);
+        const fogDepths = [-2.8, -6.5, -12.0, -18.5];
 
-          spire.scale.set(1.0, heightScale, 1.0);
-          spire.position.set(x, (5.0 * heightScale) * 0.5, z);
-          spire.rotation.y = i * 0.4;
-          spire.rotation.z = (Math.sin(i) * 0.05); // slightly leaning
-          otherWorldGroup.add(spire);
+        for (let i = 0; i < fogDepths.length; i++) {
+          const fogMat = new THREE.ShaderMaterial({
+            uniforms: {
+              uTime: { value: 0 },
+              uSpeed: { value: (i % 2 === 0 ? 1 : -1) * CONFIG.fogScrollSpeed * (1.0 + i * 0.25) },
+              uFogColor: { value: new THREE.Color(CONFIG.fogColor) },
+              uDepthFactor: { value: 0.18 + i * 0.08 }
+            },
+            vertexShader: `
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform float uTime;
+              uniform float uSpeed;
+              uniform vec3 uFogColor;
+              uniform float uDepthFactor;
+              varying vec2 vUv;
+              ${GLSL_COMMON_NOISE}
+
+              void main() {
+                vec2 uvScroll = vUv * vec2(3.0, 1.5) + vec2(uTime * uSpeed, uTime * 0.008);
+                float n = fbm(uvScroll);
+                float edgeFade = smoothstep(0.0, 0.2, vUv.x) * smoothstep(1.0, 0.8, vUv.x) *
+                                 smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.65, vUv.y);
+                float alpha = smoothstep(0.25, 0.75, n) * edgeFade * uDepthFactor;
+
+                if (alpha < 0.01) discard;
+                gl_FragColor = vec4(uFogColor, alpha);
+              }
+            `,
+            transparent: true,
+            depthWrite: false,
+            stencilWrite: true,
+            stencilRef: 1,
+            stencilFunc: THREE.EqualStencilFunc
+          });
+
+          const plane = new THREE.Mesh(fogPlaneGeo, fogMat);
+          plane.position.set(0, 3.2, fogDepths[i]);
+          fogPlanesGroup.add(plane);
         }
 
-        // 3. Floating Atmospheric Embers / Dust Particles
-        const particleCount = 280;
-        const particleGeo = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const scales = new Float32Array(particleCount);
+        // 3. Parallax Silhouette Layers with Atmospheric Perspective
+        parallaxSilhouettesGroup = new THREE.Group();
+        otherWorldGroup.add(parallaxSilhouettesGroup);
 
-        for (let i = 0; i < particleCount; i++) {
-          positions[i * 3 + 0] = (Math.random() - 0.5) * 16.0;
-          positions[i * 3 + 1] = 0.2 + Math.random() * 4.5;
-          positions[i * 3 + 2] = -Math.random() * 22.0;
-          scales[i] = 1.0 + Math.random() * 2.0;
+        // Silhouette Layers Materials (fade to fog color as depth increases)
+        const nearMat = new THREE.MeshStandardMaterial({
+          color: 0x141418,
+          roughness: 0.9,
+          stencilWrite: true,
+          stencilRef: 1,
+          stencilFunc: THREE.EqualStencilFunc
+        });
+
+        const midMat = new THREE.MeshStandardMaterial({
+          color: 0x111114,
+          roughness: 0.95,
+          stencilWrite: true,
+          stencilRef: 1,
+          stencilFunc: THREE.EqualStencilFunc
+        });
+
+        const farMat = new THREE.MeshStandardMaterial({
+          color: 0x0c0c0e,
+          roughness: 0.98,
+          stencilWrite: true,
+          stencilRef: 1,
+          stencilFunc: THREE.EqualStencilFunc
+        });
+
+        // Layer 1: Near Leaning Basalt Dolmens (-4.5m)
+        const nearGroup = new THREE.Group();
+        nearGroup.userData.parallaxWeight = 0.05;
+        const colGeo = new THREE.BoxGeometry(0.65, 4.2, 0.65);
+        for (let i = 0; i < 8; i++) {
+          const m = new THREE.Mesh(colGeo, nearMat);
+          const x = (i - 3.5) * 1.5 + (Math.sin(i * 2.3) * 0.4);
+          m.position.set(x, 2.1, -4.5 + Math.cos(i) * 0.8);
+          m.rotation.z = Math.sin(i) * 0.08;
+          nearGroup.add(m);
+        }
+        parallaxSilhouettesGroup.add(nearGroup);
+
+        // Layer 2: Mid Ruined Arches & Monoliths (-10.0m)
+        const midGroup = new THREE.Group();
+        midGroup.userData.parallaxWeight = 0.12;
+        const archPillarGeo = new THREE.BoxGeometry(1.1, 7.5, 1.1);
+        for (let i = 0; i < 9; i++) {
+          const m = new THREE.Mesh(archPillarGeo, midMat);
+          const x = (i - 4.0) * 2.8 + Math.cos(i * 1.7);
+          m.position.set(x, 3.75, -10.5 + Math.sin(i) * 1.5);
+          m.rotation.y = i * 0.6;
+          midGroup.add(m);
+        }
+        parallaxSilhouettesGroup.add(midGroup);
+
+        // Layer 3: Far Colossal Spire Towers (-22.0m)
+        const farGroup = new THREE.Group();
+        farGroup.userData.parallaxWeight = 0.22;
+        const towerGeo = new THREE.BoxGeometry(2.4, 16.0, 2.4);
+        for (let i = 0; i < 11; i++) {
+          const m = new THREE.Mesh(towerGeo, farMat);
+          const x = (i - 5.0) * 4.6;
+          m.position.set(x, 8.0, -22.0 + Math.sin(i * 3.1) * 3.0);
+          farGroup.add(m);
+        }
+        parallaxSilhouettesGroup.add(farGroup);
+
+        // 4. Drifting Spores / Particles inside the Realm (Custom Shader Points)
+        const pCount = CONFIG.interiorParticleCount;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(pCount * 3);
+        const pScales = new Float32Array(pCount);
+        const pPhase = new Float32Array(pCount);
+
+        for (let i = 0; i < pCount; i++) {
+          pPos[i * 3 + 0] = (Math.random() - 0.5) * 16.0;
+          pPos[i * 3 + 1] = 0.2 + Math.random() * 5.0;
+          pPos[i * 3 + 2] = -0.5 - Math.random() * 24.0;
+          pScales[i] = 0.8 + Math.random() * 1.8;
+          pPhase[i] = Math.random() * Math.PI * 2;
         }
 
-        particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        pGeo.setAttribute('scale', new THREE.BufferAttribute(pScales, 1));
+        pGeo.setAttribute('phase', new THREE.BufferAttribute(pPhase, 1));
 
-        // Soft circular particle texture generated via canvas
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-        grad.addColorStop(0, 'rgba(215, 185, 125, 1)');
-        grad.addColorStop(0.35, 'rgba(184, 151, 88, 0.6)');
-        grad.addColorStop(1, 'rgba(184, 151, 88, 0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 32, 32);
-        const particleTexture = new THREE.CanvasTexture(canvas);
-
-        const particleMaterial = new THREE.PointsMaterial({
-          size: 0.12,
-          map: particleTexture,
+        const pMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uColor: { value: new THREE.Color(CONFIG.accentColor) }
+          },
+          vertexShader: `
+            attribute float scale;
+            attribute float phase;
+            uniform float uTime;
+            varying float vAlpha;
+            void main() {
+              vec3 p = position;
+              p.y += sin(uTime * 0.6 + phase) * 0.12;
+              p.x += cos(uTime * 0.4 + phase) * 0.08;
+              vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+              gl_PointSize = scale * (180.0 / -mvPosition.z);
+              gl_Position = projectionMatrix * mvPosition;
+              vAlpha = 0.4 + 0.3 * sin(uTime * 1.5 + phase);
+            }
+          `,
+          fragmentShader: `
+            uniform vec3 uColor;
+            varying float vAlpha;
+            void main() {
+              float d = length(gl_PointCoord - vec2(0.5));
+              if (d > 0.5) discard;
+              float alpha = smoothstep(0.5, 0.0, d) * vAlpha;
+              gl_FragColor = vec4(uColor, alpha);
+            }
+          `,
           transparent: true,
-          opacity: 0.75,
           depthWrite: false,
           stencilWrite: true,
           stencilRef: 1,
           stencilFunc: THREE.EqualStencilFunc
         });
 
-        particlesMesh = new THREE.Points(particleGeo, particleMaterial);
-        otherWorldGroup.add(particlesMesh);
+        interiorParticles = new THREE.Points(pGeo, pMat);
+        otherWorldGroup.add(interiorParticles);
 
-        // 4. Interior Atmospheric Illumination
-        // Faint brass threshold lantern light
-        const thresholdLight = new THREE.PointLight(0xc49a45, 1.4, 9, 2);
-        thresholdLight.position.set(0, 1.8, -0.8);
-        otherWorldGroup.add(thresholdLight);
+        // 5. Sparse Out-of-Phase Bioluminescent Accents
+        const bioGeo = new THREE.SphereGeometry(0.045, 8, 8);
+        for (let i = 0; i < 16; i++) {
+          const bioMat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(CONFIG.accentColor),
+            stencilWrite: true,
+            stencilRef: 1,
+            stencilFunc: THREE.EqualStencilFunc
+          });
+          const bio = new THREE.Mesh(bioGeo, bioMat);
+          const x = (Math.sin(i * 1.8) * 3.8);
+          const z = -3.5 - (i * 1.1);
+          bio.position.set(x, 0.6 + (i % 4) * 0.4, z);
+          bio.userData.phase = i * 0.7;
+          otherWorldGroup.add(bio);
+        }
 
-        // Dim overhead ambient moonlight
-        const overheadLight = new THREE.DirectionalLight(0x3e4554, 0.7);
-        overheadLight.position.set(2, 8, -4);
-        otherWorldGroup.add(overheadLight);
+        // 6. Dim Moving Light Source (Elliptical orbit shifting highlights)
+        dimMovingLight = new THREE.PointLight(0xc29854, 1.25, 11, 2);
+        dimMovingLight.position.set(0, 1.8, -2.5);
+        otherWorldGroup.add(dimMovingLight);
 
-        const interiorAmbient = new THREE.AmbientLight(0x16161a, 0.8);
+        const interiorAmbient = new THREE.AmbientLight(0x111114, 0.85);
         otherWorldGroup.add(interiorAmbient);
 
-        // Subtle scene fog
-        scene.fog = new THREE.FogExp2(0x0b0b0e, 0.085);
+        scene.fog = new THREE.FogExp2(new THREE.Color(CONFIG.fogColor).getHex(), CONFIG.fogDensity);
       }
 
       /* -------------------------------------------------------------
-       * 5. Portal Positioning & Repositioning
+       * 7. Boundary Crossing Particles & Falling Ember Sparks
+       * ----------------------------------------------------------- */
+      function buildBoundaryCrossingParticles() {
+        // A. Particles drifting OUT of the portal into the real room
+        const count = CONFIG.crossingParticleCount;
+        const cGeo = new THREE.BufferGeometry();
+        const cPos = new Float32Array(count * 3);
+        const cVel = new Float32Array(count);
+        const cLifes = new Float32Array(count);
+
+        for (let i = 0; i < count; i++) {
+          cPos[i * 3 + 0] = (Math.random() - 0.5) * 0.75;
+          cPos[i * 3 + 1] = 0.4 + Math.random() * 1.5;
+          cPos[i * 3 + 2] = -0.4 + Math.random() * 1.8; // spans from inside to outside
+          cVel[i] = CONFIG.crossingDriftSpeed * (0.7 + Math.random() * 0.6);
+          cLifes[i] = Math.random();
+        }
+
+        cGeo.setAttribute('position', new THREE.BufferAttribute(cPos, 3));
+        cGeo.setAttribute('vel', new THREE.BufferAttribute(cVel, 1));
+        cGeo.setAttribute('life', new THREE.BufferAttribute(cLifes, 1));
+
+        const cMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uColor: { value: new THREE.Color(CONFIG.accentColor) }
+          },
+          vertexShader: `
+            attribute float life;
+            varying float vAlpha;
+            void main() {
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              gl_PointSize = (1.0 + life * 1.5) * (140.0 / -mvPosition.z);
+              gl_Position = projectionMatrix * mvPosition;
+
+              // Fades as it moves farther forward into the real room
+              float distForward = position.z;
+              vAlpha = smoothstep(1.6, 0.1, distForward) * 0.55;
+            }
+          `,
+          fragmentShader: `
+            uniform vec3 uColor;
+            varying float vAlpha;
+            void main() {
+              float d = length(gl_PointCoord - vec2(0.5));
+              if (d > 0.5) discard;
+              float alpha = smoothstep(0.5, 0.0, d) * vAlpha;
+              gl_FragColor = vec4(uColor, alpha);
+            }
+          `,
+          transparent: true,
+          depthWrite: false
+        });
+
+        crossingParticles = new THREE.Points(cGeo, cMat);
+        portalRootGroup.add(crossingParticles);
+
+        // B. Falling Ember Sparks along the torn edge
+        const sparkCount = CONFIG.fallingEmberCount;
+        const sGeo = new THREE.BufferGeometry();
+        const sPos = new Float32Array(sparkCount * 3);
+        const sLifes = new Float32Array(sparkCount);
+
+        for (let i = 0; i < sparkCount; i++) {
+          resetSparkPosition(sPos, sLifes, i);
+        }
+
+        sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+        sGeo.setAttribute('life', new THREE.BufferAttribute(sLifes, 1));
+
+        const sMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uEmberColor: { value: new THREE.Color(CONFIG.emberColor) }
+          },
+          vertexShader: `
+            attribute float life;
+            varying float vAlpha;
+            void main() {
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              gl_PointSize = (2.0 + life * 2.0) * (120.0 / -mvPosition.z);
+              gl_Position = projectionMatrix * mvPosition;
+              vAlpha = life * 0.85;
+            }
+          `,
+          fragmentShader: `
+            uniform vec3 uEmberColor;
+            varying float vAlpha;
+            void main() {
+              float d = length(gl_PointCoord - vec2(0.5));
+              if (d > 0.5) discard;
+              float a = smoothstep(0.5, 0.0, d) * vAlpha;
+              gl_FragColor = vec4(uEmberColor, a);
+            }
+          `,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        fallingEmberParticles = new THREE.Points(sGeo, sMat);
+        portalRootGroup.add(fallingEmberParticles);
+      }
+
+      function resetSparkPosition(posArr, lifeArr, i) {
+        const angle = Math.random() * Math.PI * 2;
+        const rx = 0.52 * Math.cos(angle);
+        const ry = 1.02 * Math.sin(angle);
+        posArr[i * 3 + 0] = rx + (Math.random() - 0.5) * 0.04;
+        posArr[i * 3 + 1] = 1.15 + ry + (Math.random() - 0.5) * 0.04;
+        posArr[i * 3 + 2] = (Math.random() - 0.5) * 0.03;
+        lifeArr[i] = 1.0;
+      }
+
+      /* -------------------------------------------------------------
+       * 8. Portal Placement & Telemetry
        * ----------------------------------------------------------- */
       function placePortalInFront(distance = 2.0) {
         if (!portalRootGroup || !camera) return;
 
-        // Calculate horizontal forward gaze direction
         const forward = new THREE.Vector3();
         camera.getWorldDirection(forward);
-        forward.y = 0; // Lock to level floor plane
+        forward.y = 0;
         if (forward.lengthSq() < 0.001) forward.set(0, 0, -1);
         forward.normalize();
 
-        // Place on floor plane (y = 0)
         portalRootGroup.position.set(
           camera.position.x + forward.x * distance,
           0,
           camera.position.z + forward.z * distance
         );
 
-        // Orient portal to face towards the user
         const targetYaw = Math.atan2(forward.x, forward.z) + Math.PI;
         portalRootGroup.rotation.set(0, targetYaw, 0);
 
-        // Align the other world interior along portal orientation
         otherWorldGroup.position.copy(portalRootGroup.position);
         otherWorldGroup.rotation.copy(portalRootGroup.rotation);
 
         updateCoordsTelemetry();
-        dom.stageVal.textContent = 'PORTAL LOCKED';
       }
 
       function updateCoordsTelemetry() {
@@ -1226,22 +1729,20 @@
       }
 
       /* -------------------------------------------------------------
-       * 6. "Step Through" & "Step Out" Traversal Animation
+       * 9. Step-Through Traversal & Cinematic Crossing FX
        * ----------------------------------------------------------- */
       function triggerStepTransition() {
         if (state.isStepping) return;
         state.isStepping = true;
 
         const startPos = camera.position.clone();
-        const duration = 1500; // ms
+        const startFov = camera.fov;
+        const duration = CONFIG.transitionDuration;
         const startTime = performance.now();
 
-        // Target positions calculated in portal local space
         if (!state.isInsideRealm) {
-          // Outside -> Step inside (1.8m past the portal plane)
           insideTargetPos.set(0, 1.4, -1.8).applyMatrix4(portalRootGroup.matrixWorld);
         } else {
-          // Inside -> Step back outside (1.8m in front of portal)
           outsideTargetPos.set(0, 1.4, 1.8).applyMatrix4(portalRootGroup.matrixWorld);
         }
 
@@ -1251,24 +1752,32 @@
         function animateStep(now) {
           const elapsed = now - startTime;
           const progress = Math.min(1.0, elapsed / duration);
-          // Cubic ease-in-out curve
+
+          // Cubic easing
           const ease = progress < 0.5
             ? 4 * progress * progress * progress
             : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 
           camera.position.lerpVectors(startPos, targetPos, ease);
 
-          // Threshold crossing occurs at midpoint (progress ~ 0.5)
-          if (!willBeInside && state.isInsideRealm && progress >= 0.5) {
-            applyRealmState(false);
-          } else if (willBeInside && !state.isInsideRealm && progress >= 0.5) {
-            applyRealmState(true);
+          // Brief FOV punch during traversal
+          const fovDelta = Math.sin(progress * Math.PI) * CONFIG.fovPunchAmount;
+          camera.fov = startFov + fovDelta;
+          camera.updateProjectionMatrix();
+
+          // Crossing midpoint trigger
+          if (progress >= 0.5 && state.isInsideRealm !== willBeInside) {
+            triggerCrossingFlash();
+            audio.triggerRumble();
+            applyRealmState(willBeInside);
           }
 
           if (progress < 1.0) {
             requestAnimationFrame(animateStep);
           } else {
             camera.position.copy(targetPos);
+            camera.fov = startFov;
+            camera.updateProjectionMatrix();
             state.isStepping = false;
           }
         }
@@ -1276,51 +1785,48 @@
         requestAnimationFrame(animateStep);
       }
 
+      function triggerCrossingFlash() {
+        dom.screenFlash.classList.add('flash');
+        setTimeout(() => dom.screenFlash.classList.remove('flash'), 80);
+      }
+
       function applyRealmState(inside) {
         state.isInsideRealm = inside;
         audio.setRealmState(inside);
 
         if (inside) {
-          // Inside: Hide camera feed, reveal full other world in 360 degrees
-          dom.video.style.display = 'none';
+          dom.video.style.opacity = '0';
+          setTimeout(() => { if (state.isInsideRealm) dom.video.style.display = 'none'; }, 400);
           dom.hudRealmBadge.textContent = '[INTERIOR]';
           dom.hudRealmBadge.style.color = 'var(--brass)';
           dom.btnStep.textContent = 'Step Out';
           dom.btnStep.classList.remove('btn-brass');
 
-          // Turn off stencil testing for interior so it renders everywhere
           otherWorldGroup.traverse((child) => {
-            if (child.material) {
-              child.material.stencilFunc = THREE.AlwaysStencilFunc;
-            }
+            if (child.material) child.material.stencilFunc = THREE.AlwaysStencilFunc;
           });
         } else {
-          // Outside: Restore rear camera feed behind the portal
           if (state.cameraMode === 'camera') {
             dom.video.style.display = 'block';
+            setTimeout(() => { dom.video.style.opacity = '1'; }, 20);
           }
           dom.hudRealmBadge.textContent = '[EXTERIOR]';
           dom.hudRealmBadge.style.color = 'inherit';
           dom.btnStep.textContent = 'Step Through';
           dom.btnStep.classList.add('btn-brass');
 
-          // Restore stencil testing so interior is only seen through the doorway
           otherWorldGroup.traverse((child) => {
-            if (child.material) {
-              child.material.stencilFunc = THREE.EqualStencilFunc;
-            }
+            if (child.material) child.material.stencilFunc = THREE.EqualStencilFunc;
           });
         }
       }
 
       /* -------------------------------------------------------------
-       * 7. Camera Feed (getUserMedia) & Error Handling
+       * 10. Camera Feed, Gyroscope & Drag Controls
        * ----------------------------------------------------------- */
       async function startCameraFeed() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          if (!window.isSecureContext) {
-            throw new Error('INSECURE_CONTEXT');
-          }
+          if (!window.isSecureContext) throw new Error('INSECURE_CONTEXT');
           throw new Error('NO_GETUSERMEDIA');
         }
 
@@ -1337,11 +1843,13 @@
           dom.video.srcObject = stream;
           await dom.video.play();
           dom.video.style.display = 'block';
+          dom.video.style.opacity = '1';
           dom.hudCam.textContent = 'REAR 1080P';
           dom.hudCam.className = 'telemetry-val accent';
+
+          if (videoTexture) videoTexture.needsUpdate = true;
           return true;
         } catch (err) {
-          console.warn('getUserMedia failure:', err);
           if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             throw new Error('PERMISSION_DENIED');
           } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
@@ -1352,11 +1860,7 @@
         }
       }
 
-      /* -------------------------------------------------------------
-       * 8. Orientation Control (iOS DeviceOrientation & Drag Fallback)
-       * ----------------------------------------------------------- */
       async function setupMotionSensors() {
-        // iOS 13+ requires explicit DeviceOrientationEvent.requestPermission() inside a gesture handler
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
           try {
             const permissionState = await DeviceOrientationEvent.requestPermission();
@@ -1394,25 +1898,28 @@
         const zee = new THREE.Vector3(0, 0, 1);
         const euler = new THREE.Euler();
         const q0 = new THREE.Quaternion();
-        const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -PI/2 around X
+        const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+        const tempQ = new THREE.Quaternion();
 
         window.addEventListener('deviceorientation', (e) => {
           if (e.alpha === null || state.isDragging) return;
 
-          const alpha = THREE.MathUtils.degToRad(e.alpha || 0);
-          const beta = THREE.MathUtils.degToRad(e.beta || 0);
-          const gamma = THREE.MathUtils.degToRad(e.gamma || 0);
+          state.gyroAlpha = e.alpha || 0;
+          state.gyroBeta = e.beta || 0;
+          state.gyroGamma = e.gamma || 0;
+
+          const alpha = THREE.MathUtils.degToRad(state.gyroAlpha);
+          const beta = THREE.MathUtils.degToRad(state.gyroBeta);
+          const gamma = THREE.MathUtils.degToRad(state.gyroGamma);
           const orient = THREE.MathUtils.degToRad(window.orientation || 0);
 
-          // Convert device coordinates to standard camera space
           euler.set(beta, alpha, -gamma, 'YXZ');
           camera.quaternion.setFromEuler(euler);
           camera.quaternion.multiply(q1);
           camera.quaternion.multiply(q0.setFromAxisAngle(zee, -orient));
 
-          // Apply manual drag calibration offset
-          tempQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
-          camera.quaternion.premultiply(tempQuat);
+          tempQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
+          camera.quaternion.premultiply(tempQ);
         }, { passive: true });
       }
 
@@ -1441,11 +1948,8 @@
           }
         };
 
-        const onEnd = () => {
-          state.isDragging = false;
-        };
+        const onEnd = () => { state.isDragging = false; };
 
-        // Pointer / Touch / Mouse handlers
         window.addEventListener('mousedown', (e) => {
           if (e.target.closest('#ui-hud button, #ui-hud input, #start-overlay, #error-drawer')) return;
           onStart(e.clientX, e.clientY);
@@ -1466,16 +1970,16 @@
       }
 
       /* -------------------------------------------------------------
-       * 9. Render Loop with Precise Real FPS & Stencil Multi-Pass
+       * 11. Render Loop, Parallax, Proximity Light & Quality Benchmark
        * ----------------------------------------------------------- */
       function startRenderLoop() {
+        state.benchmarkStart = performance.now();
         renderer.setAnimationLoop(render);
-        dom.stageVal.textContent = 'RENDER LOOP ACTIVE';
       }
 
       function render(timestamp) {
-        // Real FPS Calculation (smoothed over 500ms intervals)
         state.frameCount++;
+        state.benchmarkFrames++;
         const now = performance.now();
         const delta = now - state.lastFpsTime;
 
@@ -1484,140 +1988,227 @@
           dom.fpsVal.textContent = `${state.fps} FPS`;
           state.frameCount = 0;
           state.lastFpsTime = now;
-        }
 
-        const timeSeconds = (timestamp || now) * 0.001;
-
-        // Animate rift boundary noise shader
-        if (riftMaterial && riftMaterial.uniforms) {
-          riftMaterial.uniforms.uTime.value = timeSeconds;
-        }
-
-        // Animate floating dust particles inside realm
-        if (particlesMesh) {
-          const positions = particlesMesh.geometry.attributes.position.array;
-          for (let i = 0; i < positions.length / 3; i++) {
-            positions[i * 3 + 1] += Math.sin(timeSeconds + i) * 0.0015;
-            positions[i * 3 + 0] += Math.cos(timeSeconds * 0.5 + i) * 0.0008;
+          // Benchmark & Auto-Downgrade Check
+          if (now - state.benchmarkStart > 2000) {
+            if (state.fps < CONFIG.autoDowngradeThreshold) {
+              state.lowFpsCount++;
+              if (state.lowFpsCount >= 3) {
+                if (state.currentTier === 'high') applyQualityTier('medium');
+                else if (state.currentTier === 'medium') applyQualityTier('low');
+                state.lowFpsCount = 0;
+              }
+            } else {
+              state.lowFpsCount = Math.max(0, state.lowFpsCount - 1);
+            }
           }
-          particlesMesh.geometry.attributes.position.needsUpdate = true;
         }
+
+        const t = (timestamp || now) * 0.001;
+
+        // Animate torn aperture & charred rim shaders
+        if (portalApertureMask && portalApertureMask.material.uniforms) {
+          portalApertureMask.material.uniforms.uTime.value = t;
+        }
+        if (portalTornEdgeMesh && portalTornEdgeMesh.material.uniforms) {
+          portalTornEdgeMesh.material.uniforms.uTime.value = t;
+        }
+        if (portalRefractionMesh && portalRefractionMesh.material.uniforms) {
+          portalRefractionMesh.material.uniforms.uTime.value = t;
+          if (videoTexture && dom.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            videoTexture.needsUpdate = true;
+          }
+        }
+        if (floorDecalMesh && floorDecalMesh.material.uniforms) {
+          floorDecalMesh.material.uniforms.uTime.value = t;
+        }
+
+        // Animate volumetric scrolling fog planes
+        if (fogPlanesGroup) {
+          fogPlanesGroup.children.forEach((plane) => {
+            if (plane.material.uniforms) plane.material.uniforms.uTime.value = t;
+          });
+        }
+
+        // Animate moving interior dim light source
+        if (dimMovingLight) {
+          dimMovingLight.position.x = Math.sin(t * CONFIG.movingLightSpeed) * 1.4;
+          dimMovingLight.position.y = 1.7 + Math.cos(t * 0.3) * 0.35;
+          dimMovingLight.position.z = -2.6 + Math.cos(t * 0.5) * 0.9;
+        }
+
+        // Animate drifting interior particles
+        if (interiorParticles && interiorParticles.material.uniforms) {
+          interiorParticles.material.uniforms.uTime.value = t;
+        }
+
+        // Animate boundary-crossing particles (drifting OUT of the portal into the real room)
+        if (crossingParticles) {
+          const pos = crossingParticles.geometry.attributes.position.array;
+          const vel = crossingParticles.geometry.attributes.vel.array;
+          const dt = 0.016;
+
+          for (let i = 0; i < pos.length / 3; i++) {
+            pos[i * 3 + 2] += vel[i] * dt; // move forward in Z
+            pos[i * 3 + 0] += Math.sin(t * 1.2 + i) * 0.0012; // gentle horizontal sway
+
+            // Reset when reaching max forward distance
+            if (pos[i * 3 + 2] > 1.6) {
+              pos[i * 3 + 2] = -0.4;
+              pos[i * 3 + 0] = (Math.random() - 0.5) * 0.75;
+              pos[i * 3 + 1] = 0.4 + Math.random() * 1.5;
+            }
+          }
+          crossingParticles.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // Animate falling ember sparks along the torn perimeter
+        if (fallingEmberParticles) {
+          const sPos = fallingEmberParticles.geometry.attributes.position.array;
+          const sLife = fallingEmberParticles.geometry.attributes.life.array;
+
+          for (let i = 0; i < sPos.length / 3; i++) {
+            sPos[i * 3 + 1] -= 0.012; // fall under gravity
+            sPos[i * 3 + 0] += (Math.sin(t * 4.0 + i) * 0.0015);
+            sLife[i] -= 0.022;
+
+            if (sLife[i] <= 0 || sPos[i * 3 + 1] < 0.02) {
+              resetSparkPosition(sPos, sLife, i);
+            }
+          }
+          fallingEmberParticles.geometry.attributes.position.needsUpdate = true;
+          fallingEmberParticles.geometry.attributes.life.needsUpdate = true;
+        }
+
+        // Device Tilt Parallax on the 3 Interior Silhouette Layers
+        if (parallaxSilhouettesGroup) {
+          const tiltX = (state.gyroGamma || 0) * 0.003;
+          const tiltY = (state.gyroBeta - 45 || 0) * 0.002;
+          parallaxSilhouettesGroup.children.forEach((grp) => {
+            const w = grp.userData.parallaxWeight || 0.1;
+            grp.position.x = tiltX * w * 10.0;
+            grp.position.y = -tiltY * w * 8.0;
+          });
+        }
+
+        // Idle camera sway inside the portal world
+        if (state.isInsideRealm && !state.isStepping) {
+          camera.position.x += Math.sin(t * 0.7) * 0.0003;
+          camera.position.y += Math.cos(t * 0.9) * 0.0002;
+        }
+
+        // Camera feed proximity color grade shift
+        if (portalRootGroup) {
+          const distToPortal = camera.position.distanceTo(portalRootGroup.position);
+          const prox = Math.max(0, Math.min(1, (2.6 - distToPortal) / 2.0));
+          if (!state.isInsideRealm && dom.video) {
+            const sepia = (prox * CONFIG.colorGradeStrength * 45).toFixed(1);
+            const contrast = (100 + prox * 10).toFixed(1);
+            dom.video.style.filter = `sepia(${sepia}%) contrast(${contrast}%)`;
+          }
+        }
+
+        // Update spatial audio listener
+        audio.updateListener(camera, portalRootGroup?.position);
 
         // --- STENCIL MULTI-PASS RENDERING ---
         if (!state.isInsideRealm) {
-          // OUTSIDE VIEW:
-          // Background is transparent to reveal rear camera video underneath
+          // Pass 0: Transparent clear for rear video feed
           renderer.setClearColor(0x000000, 0.0);
-          renderer.clear(true, true, true); // clear color, depth, and stencil
+          renderer.clear(true, true, true);
 
           // Pass 1: Render Aperture Mask (writes 1 into stencil buffer)
           portalApertureMask.visible = true;
           otherWorldGroup.visible = false;
-          portalFrameGroup.visible = false;
+          portalTornEdgeMesh.visible = false;
+          if (portalRefractionMesh) portalRefractionMesh.visible = false;
+          floorDecalMesh.visible = false;
+          crossingParticles.visible = false;
+          fallingEmberParticles.visible = false;
           renderer.render(scene, camera);
 
-          // Pass 2: Clear depth buffer so other world has complete depth freedom
+          // Pass 2: Clear depth buffer for interior freedom
           renderer.clearDepth();
 
-          // Pass 3: Render Other World Interior (drawn ONLY where stencil == 1)
+          // Pass 3: Render Other World Interior (ONLY where stencil == 1)
           portalApertureMask.visible = false;
           otherWorldGroup.visible = true;
-          portalFrameGroup.visible = false;
+          portalTornEdgeMesh.visible = false;
           renderer.render(scene, camera);
 
-          // Pass 4: Render Stone Arch Frame & Outside Ground Shadows (normal depth)
+          // Pass 4: Render Charred Rim, Refraction, Floor Decal & Crossing Particles (normal depth)
           portalApertureMask.visible = false;
           otherWorldGroup.visible = false;
-          portalFrameGroup.visible = true;
+          portalTornEdgeMesh.visible = true;
+          if (portalRefractionMesh && state.currentTier !== 'low') portalRefractionMesh.visible = true;
+          floorDecalMesh.visible = true;
+          crossingParticles.visible = true;
+          fallingEmberParticles.visible = true;
           renderer.render(scene, camera);
 
           // Reset visibility flags
           portalApertureMask.visible = true;
           otherWorldGroup.visible = true;
-          portalFrameGroup.visible = true;
         } else {
-          // INSIDE REALM VIEW:
-          // Immersed in other world: render with dark atmospheric clear color
-          renderer.setClearColor(0x0b0b0e, 1.0);
+          // Inside Realm: Render full atmospheric dark void
+          renderer.setClearColor(new THREE.Color(CONFIG.fogColor).getHex(), 1.0);
           renderer.clear(true, true, true);
 
-          // Render other world and the back of the portal arch
           portalApertureMask.visible = false;
           otherWorldGroup.visible = true;
-          portalFrameGroup.visible = true;
+          portalTornEdgeMesh.visible = true; // visible looking back at the tear
+          if (portalRefractionMesh) portalRefractionMesh.visible = false;
+          floorDecalMesh.visible = false;
+          crossingParticles.visible = false;
+          fallingEmberParticles.visible = true;
           renderer.render(scene, camera);
         }
       }
 
       /* -------------------------------------------------------------
-       * 10. Start Experience Flow & Error UI
+       * 12. Experience Initiation & Lifecycle
        * ----------------------------------------------------------- */
       async function startExperience(forcePreview = false) {
         dom.startOverlay.classList.add('fade-out');
         dom.hud.classList.add('visible');
         hideError();
 
-        // 1. Ensure WebGL is up
         if (!state.isInitialized) {
           const ok = initThree();
           if (!ok) return;
           state.isInitialized = true;
         }
 
-        // 2. Start render loop immediately so black screen is IMPOSSIBLE
         startRenderLoop();
 
         if (forcePreview) {
           state.cameraMode = 'preview';
-          dom.hudCam.textContent = 'PREVIEW (NO CAM)';
+          dom.hudCam.textContent = 'DESKTOP VIEW';
           dom.hudMotion.textContent = 'DRAG ACTIVE';
-          dom.stageVal.textContent = 'DESKTOP ACTIVE';
           placePortalInFront(state.portalDistance);
           return;
         }
 
-        // 3. Attempt Camera Feed
-        dom.stageVal.textContent = 'STARTING CAMERA...';
         try {
           await startCameraFeed();
         } catch (err) {
-          console.warn('Camera failed:', err.message);
+          console.warn('Camera notice:', err.message);
           handleCameraError(err.message);
         }
 
-        // 4. Request Motion Sensors (iOS permission must run in this user click event!)
-        dom.stageVal.textContent = 'LINKING SENSORS...';
         await setupMotionSensors();
-
-        // 5. Place portal in front
         placePortalInFront(state.portalDistance);
       }
 
       function handleCameraError(reason) {
         if (reason === 'INSECURE_CONTEXT') {
-          showError(
-            'HTTPS Required',
-            'Camera and motion sensors require a secure context (HTTPS or localhost). Run via local HTTPS or ngrok tunnel.',
-            true
-          );
+          showError('HTTPS Required', 'Camera access requires HTTPS or localhost.', true);
         } else if (reason === 'PERMISSION_DENIED') {
-          showError(
-            'Camera Permission Denied',
-            'Camera access was denied by your browser. Please allow camera permissions in browser settings and tap Retry.',
-            true
-          );
+          showError('Camera Permission Denied', 'Please allow camera permissions and tap Retry.', true);
         } else if (reason === 'NO_CAMERA') {
-          showError(
-            'No Camera Detected',
-            'No environment camera was found on this device. You can explore in desktop drag mode.',
-            false
-          );
+          showError('No Camera Detected', 'No environment camera found. Switched to desktop mode.', false);
         } else {
-          showError(
-            'Camera Unavailable',
-            'Unable to initialize camera video stream. Switching to desktop preview mode.',
-            false
-          );
+          showError('Camera Unavailable', 'Unable to start camera. Proceeding in preview mode.', false);
         }
       }
 
@@ -1633,45 +2224,21 @@
       }
 
       /* -------------------------------------------------------------
-       * 11. Event Bindings
+       * 13. Event Listeners
        * ----------------------------------------------------------- */
-      // Start AR Experience button
-      dom.btnStartAR.addEventListener('click', () => {
-        startExperience(false);
-      });
+      dom.btnStartAR.addEventListener('click', () => startExperience(false));
+      dom.btnErrRetry.addEventListener('click', () => { hideError(); startExperience(false); });
+      dom.btnErrPreview.addEventListener('click', () => { hideError(); startExperience(true); });
+      dom.btnReplace.addEventListener('click', () => placePortalInFront(state.portalDistance));
+      dom.btnStep.addEventListener('click', () => triggerStepTransition());
 
-      // Error banner buttons
-      dom.btnErrRetry.addEventListener('click', () => {
-        hideError();
-        startExperience(false);
-      });
-
-      dom.btnErrPreview.addEventListener('click', () => {
-        hideError();
-        startExperience(true);
-      });
-
-      // Re-place Portal
-      dom.btnReplace.addEventListener('click', () => {
-        placePortalInFront(state.portalDistance);
-      });
-
-      // Step Through / Step Out Traversal
-      dom.btnStep.addEventListener('click', () => {
-        triggerStepTransition();
-      });
-
-      // Scale Slider
       dom.scaleSlider.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
         state.portalScale = val;
         dom.scaleNum.textContent = `${val.toFixed(2)}x`;
-        if (portalRootGroup) {
-          portalRootGroup.scale.setScalar(val);
-        }
+        if (portalRootGroup) portalRootGroup.scale.setScalar(val);
       });
 
-      // Ambient Audio Synthesizer Toggle
       dom.btnAudioToggle.addEventListener('click', () => {
         const isPlaying = audio.toggle();
         state.audioActive = isPlaying;
@@ -1680,7 +2247,6 @@
         dom.btnAudioToggle.classList.toggle('btn-brass', isPlaying);
       });
 
-      // Fullscreen Toggle
       dom.btnFullscreen.addEventListener('click', () => {
         if (!document.fullscreenElement) {
           document.documentElement.requestFullscreen().catch(() => {});
@@ -1689,23 +2255,14 @@
         }
       });
 
-      // Check context security on load
       if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        document.getElementById('security-notice').style.color = 'var(--alert-crimson)';
-        document.getElementById('security-notice').textContent =
-          'WARNING: This page is loaded over insecure HTTP. Mobile camera and gyro access require HTTPS or localhost.';
+        const notice = document.getElementById('security-notice');
+        if (notice) {
+          notice.style.color = 'var(--alert-crimson)';
+          notice.textContent = 'WARNING: Insecure HTTP. Camera and sensors require HTTPS or localhost.';
+        }
       }
 
-      // Check WebXR support
-      if (navigator.xr && navigator.xr.isSessionSupported) {
-        navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-          if (supported) {
-            dom.btnStartAR.textContent = 'Enter WebXR / Camera Mode';
-          }
-        }).catch(() => {});
-      }
-
-      // Pre-initialize WebGL on idle so there is zero hitch when tapping Enter
       window.addEventListener('load', () => {
         initThree();
         state.isInitialized = true;
