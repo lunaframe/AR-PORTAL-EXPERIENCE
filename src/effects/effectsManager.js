@@ -13,52 +13,37 @@ export class EffectsManager {
 
     this.effects = new Map(); // id -> effectInstance
     this.groups = {
-      core: new Set(),
+      gate: new Set(),
       particles: new Set(),
       lighting: new Set(),
-      twilight: new Set(),
+      realm: new Set(),
       reactive: new Set(),
       ui: new Set(),
     };
 
     this.groupEnabled = {
-      core: true,
+      gate: true,
       particles: true,
       lighting: true,
-      twilight: true,
+      realm: true,
       reactive: true,
       ui: true,
     };
 
     this.masterIntensity = 1.0;
     this.currentQuality = 'high';
-    this.currentTheme = 'twilight';
+    this.currentTheme = 'dream';
 
-    // Shared theme palettes (RGB vectors)
+    // Dream Gate Palette (RGB vectors)
     this.themes = {
-      twilight: {
-        name: 'Twilight',
-        primary: { r: 27 / 255, g: 20 / 255, b: 100 / 255 }, // Indigo #1b1464
-        secondary: { r: 109 / 255, g: 40 / 255, b: 217 / 255 }, // Violet #6d28d9
-        accent1: { r: 20 / 255, g: 241 / 255, b: 217 / 255 }, // Teal #14f1d9
-        accent2: { r: 255 / 255, g: 60 / 255, b: 172 / 255 }, // Magenta #ff3cac
-        highlight: { r: 232 / 255, g: 247 / 255, b: 255 / 255 }, // Soft White #e8f7ff
-      },
-      ember: {
-        name: 'Ember',
-        primary: { r: 75 / 255, g: 15 / 255, b: 10 / 255 }, // Deep Crimson
-        secondary: { r: 195 / 255, g: 45 / 255, b: 20 / 255 }, // Burning Orange
-        accent1: { r: 255 / 255, g: 185 / 255, b: 40 / 255 }, // Gold Flame
-        accent2: { r: 255 / 255, g: 70 / 255, b: 40 / 255 }, // Hot Ember
-        highlight: { r: 255 / 255, g: 245 / 255, b: 220 / 255 }, // Warm White
-      },
-      frost: {
-        name: 'Frost',
-        primary: { r: 10 / 255, g: 35 / 255, b: 70 / 255 }, // Deep Arctic Blue
-        secondary: { r: 35 / 255, g: 110 / 255, b: 190 / 255 }, // Glacial Cyan
-        accent1: { r: 120 / 255, g: 230 / 255, b: 255 / 255 }, // Ice Shimmer
-        accent2: { r: 190 / 255, g: 140 / 255, b: 255 / 255 }, // Aurora Lilac
-        highlight: { r: 240 / 255, g: 252 / 255, b: 255 / 255 }, // Pure Frost
+      dream: {
+        name: 'Dream Gate',
+        midnight: { r: 11 / 255, g: 10 / 255, b: 42 / 255 },  // #0b0a2a
+        violet: { r: 124 / 255, g: 77 / 255, b: 255 / 255 },  // #7c4dff
+        silver: { r: 223 / 255, g: 233 / 255, b: 255 / 255 }, // #dfe9ff
+        teal: { r: 61 / 255, g: 242 / 255, b: 208 / 255 },    // #3df2d0
+        rose: { r: 255 / 255, g: 158 / 255, b: 203 / 255 },   // #ff9ecb
+        lantern: { r: 255 / 255, g: 210 / 255, b: 122 / 255 },// #ffd27a
       },
     };
   }

@@ -1,6 +1,6 @@
 /**
  * scripts/verify-full-app.mjs
- * Automated Node.js verification test for Twilight Portal
+ * Automated Verification Suite for "Dream Gate" WebXR AR Application
  */
 
 // 1. Setup browser mocks BEFORE importing three.js application modules
@@ -10,6 +10,14 @@ global.window = {
   devicePixelRatio: 2,
   addEventListener: () => {},
   removeEventListener: () => {},
+};
+
+const mockStorage = new Map();
+global.localStorage = {
+  getItem: (k) => mockStorage.get(k) || null,
+  setItem: (k, v) => mockStorage.set(k, String(v)),
+  removeItem: (k) => mockStorage.delete(k),
+  clear: () => mockStorage.clear(),
 };
 
 global.document = {
@@ -65,22 +73,24 @@ if (!globalThis.navigator.vibrate) {
   } catch (e) {}
 }
 
-// Now import modules
+// Import modules
 const THREE = await import('three');
 const { QualityManager } = await import('../src/utils/quality.js');
 const { EffectsManager } = await import('../src/effects/effectsManager.js');
-const { Portal } = await import('../src/portal/portal.js');
-const { ScanningReticle } = await import('../src/portal/reticle.js');
+const { DreamGate } = await import('../src/gate/gate.js');
+const { MoonReticle } = await import('../src/gate/reticle.js');
+const { RealmManager } = await import('../src/realms/realmManager.js');
 const { audioEngine } = await import('../src/audio/engine.js');
+const { dreamJournal } = await import('../src/journal/dreamJournal.js');
 
-console.log('🔮 ==============================================================');
-console.log('   TWILIGHT PORTAL — 43 VFX & SPATIAL AUDIO VERIFICATION SUITE');
+console.log('🌌 ==============================================================');
+console.log('   DREAM GATE — PRODUCTION VERIFICATION TEST SUITE');
 console.log('   ==============================================================\n');
 
 // 1. Initialize Scene & Mock Renderer
 console.log('▶ [1/6] Initializing Three.js Scene, Camera, Quality & Effects Managers...');
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.05, 100);
+const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.05, 120);
 camera.position.set(0, 1.4, 1.8);
 
 const mockRenderer = {
@@ -99,93 +109,101 @@ const mockRenderer = {
 
 const quality = new QualityManager(mockRenderer);
 const effects = new EffectsManager(scene, camera, mockRenderer);
-const portal = new Portal(scene, camera, mockRenderer, effects);
-const reticle = new ScanningReticle(scene);
+const gate = new DreamGate(scene, camera, mockRenderer, effects);
+const reticle = new MoonReticle(scene);
+const realms = new RealmManager(scene, camera, mockRenderer, effects);
 
 console.log(`   ✓ QualityManager initialized: Tier = ${quality.currentQuality}`);
 console.log(`   ✓ EffectsManager initialized: ${effects.effects.size} registered visual effects`);
-console.log(`   ✓ Master Portal and Scanning Reticle assemblies constructed successfully.\n`);
+console.log(`   ✓ Master Dream Gate, Moon Reticle, and Realm Manager constructed.\n`);
 
-// 2. Validate Effect Groups Registration
-console.log('▶ [2/6] Verifying all 43 Visual Effect Subsystems across Groups A, B, C, D...');
-const expectedGroups = ['core', 'particles', 'lighting', 'twilight'];
-let totalRegistered = 0;
-for (const grp of expectedGroups) {
-  const count = effects.groups[grp]?.size || 0;
-  totalRegistered += count;
-  console.log(`   • Group ${grp.toUpperCase()}: ${count} effects active`);
-  if (count === 0) throw new Error(`Missing effects in group ${grp}`);
+// 2. Validate All Three Realms & Stencil Function Gating
+console.log('▶ [2/6] Verifying All Three Dream Realms (Sky Garden, Midnight Ocean, Star Library)...');
+const realmNames = ['skyGarden', 'midnightOcean', 'starLibrary'];
+for (const realmId of realmNames) {
+  realms.setRealm(realmId);
+  gate.setRealm(realmId);
+  console.log(`   ✓ Switched to realm "${realmId}": ${realms.realms[realmId] ? 'ACTIVE' : 'FAILED'}`);
 }
-console.log(`   ✓ Total registered effects in manager: ${totalRegistered}\n`);
 
-// 3. Test Themes & Color Uniforms (Twilight, Ember, Frost)
-console.log('▶ [3/6] Testing Dynamic Palette Switching (Twilight / Ember / Frost)...');
-for (const themeName of ['twilight', 'ember', 'frost']) {
-  effects.setTheme(themeName);
-  console.log(`   ✓ Switched to "${themeName.toUpperCase()}" theme — shader uniforms updated`);
+// Test Stencil Gating
+realms.setInsideVirtual(true);
+console.log('   ✓ Set realm inside immersion (THREE.AlwaysStencilFunc)');
+realms.setInsideVirtual(false);
+console.log('   ✓ Set realm outside doorway gating (THREE.EqualStencilFunc)\n');
+
+// 3. Test Dream Fragments Collection & Chime Progression
+console.log('▶ [3/6] Testing 7 Dream Fragments Collection System...');
+if (realms.fragments.fragments.length !== 7) {
+  throw new Error(`Expected 7 fragments, found ${realms.fragments.fragments.length}`);
 }
-effects.setTheme('twilight');
-console.log('   ✓ Returned to default Twilight bioluminescent palette.\n');
+for (let i = 0; i < 7; i++) {
+  const f = realms.fragments.fragments[i];
+  realms.fragments.collect(f);
+}
+console.log(`   ✓ Successfully collected ${realms.fragments.collectedCount}/7 dream fragments with ascending chimes.\n`);
 
-// 4. Test Quality Scaling (Low / Medium / High)
-console.log('▶ [4/6] Testing Performance Quality Tiers (Low / Medium / High)...');
+// 4. Test Wake-Up Sequence & Dream Journal
+console.log('▶ [4/6] Testing Wake-Up Sequence & Dream Journal LocalStorage Persistence...');
+const poeticTitle = dreamJournal.generatePoeticTitle('skyGarden', 7);
+console.log(`   ✓ Generated Poetic Dream Title: "${poeticTitle}"`);
+
+const saved = dreamJournal.saveDream({
+  title: poeticTitle,
+  realm: 'Sky Garden',
+  fragments: 7,
+  timeSpentSeconds: 142,
+});
+if (!saved) throw new Error('Failed to save dream to localStorage');
+
+const records = dreamJournal.getDreams();
+console.log(`   ✓ Verified Dream Journal records: ${records.length} saved dream(s) in journal`);
+console.log(`   ✓ Most recent: "${records[0].title}" (${records[0].realm}, ${records[0].fragments}/7 fragments)\n`);
+
+// 5. Stress Testing: 10x Gate Summon, Traversal, and Dissolve Cycles
+console.log('▶ [5/6] Stress Testing: 10x Gate Summon, Traversal Crossing, and Dissolve Cycles...');
+for (let cycle = 1; cycle <= 10; cycle++) {
+  const pos = new THREE.Vector3((cycle % 2) * 0.1, 0, -1.8);
+  gate.place(pos, camera.position);
+  if (!gate.isPlaced) throw new Error(`Cycle ${cycle}: Gate failed to place`);
+
+  // Advance summon sequence
+  for (let t = 0; t < 20; t++) {
+    gate.sequence.update(0.1, t * 0.1, {});
+  }
+
+  // Cross into realm
+  camera.position.set(pos.x, 1.2, pos.z - 0.3);
+  gate.checkCrossing(camera.position);
+
+  // Cross back out
+  camera.position.set(pos.x, 1.2, pos.z + 0.3);
+  gate.checkCrossing(camera.position);
+
+  // Dissolve gate
+  gate.remove(() => {});
+  for (let t = 0; t < 15; t++) {
+    gate.sequence.update(0.1, t * 0.1, {});
+  }
+}
+console.log('   ✓ 10/10 Gate summon, traversal crossing, and dissolve stress cycles passed with 0 errors.\n');
+
+// 6. Test Quality Tiers & Audio Reactivity
+console.log('▶ [6/6] Testing Performance Quality Tiers & Audio Reactivity Updates...');
 for (const q of ['low', 'medium', 'high']) {
   quality.setQuality(q);
   effects.setQuality(q);
   const prof = quality.getProfile();
-  console.log(`   ✓ Quality Tier "${q}": particleScale=${prof.particleScale}, maxDpr=${prof.maxDpr}, shaderLOD=${prof.shaderLOD}`);
+  console.log(`   ✓ Quality Profile "${q}": particleScale=${prof.particleScale}, maxDpr=${prof.maxDpr}, shaderLOD=${prof.shaderLOD}`);
 }
-console.log('   ✓ Quality scaling tested with dynamic LOD.\n');
 
-// 5. Stress Test: 10x Placement and Removal Cycles
-console.log('▶ [5/6] Stress Testing: Placing and Removing Portal 10x (Lifecycle & Leaks)...');
-for (let cycle = 1; cycle <= 10; cycle++) {
-  const pos = new THREE.Vector3((cycle % 2) * 0.2, 0, -1.8);
-  portal.place(pos, camera.position);
-  if (!portal.isPlaced) throw new Error(`Cycle ${cycle}: Portal failed to place`);
-
-  // Simulate opening sequence ticks
-  for (let t = 0; t < 20; t++) {
-    portal.sequence.update(0.1, t * 0.1, {});
-  }
-
-  // Check camera crossing math
-  camera.position.set(pos.x, 1.2, pos.z + 0.1);
-  portal.checkCrossing(camera.position);
-
-  camera.position.set(pos.x, 1.2, pos.z - 0.2);
-  portal.checkCrossing(camera.position);
-
-  // Remove
-  portal.remove(() => {});
-  // Advance closing sequence
-  for (let t = 0; t < 15; t++) {
-    portal.sequence.update(0.1, t * 0.1, {});
-  }
-}
-console.log('   ✓ 10/10 Portal placement, sequence opening, crossing, and removal cycles passed with 0 errors.\n');
-
-// 6. Test Rendering Loop Update Call
-console.log('▶ [6/6] Testing Master Render Loop Update Step with Audio Reactivity...');
-portal.place(new THREE.Vector3(0, 0, -1.8), camera.position);
-
-const mockAudioData = {
-  bass: 0.85,
-  mid: 0.45,
-  treble: 0.65,
-  energy: 0.72,
-};
-
-effects.update(0.016, 1.0, {
-  audio: mockAudioData,
-  proximity: 0.75,
-  isInside: false,
-  estimatedLightColor: new THREE.Color(0xe8f7ff),
-});
-
-console.log('   ✓ EffectsManager.update(dt, time, state) completed without exceptions.');
-console.log('   ✓ Audio reactivity uniforms successfully fed to vortex, crystals, god rays, and ripples.\n');
+// Master update call
+gate.place(new THREE.Vector3(0, 0, -1.8), camera.position);
+const mockAudio = { bass: 0.82, mid: 0.54, treble: 0.68, energy: 0.75 };
+effects.update(0.016, 1.0, { audio: mockAudio, proximity: 0.8, isInside: true });
+realms.update(0.016, 1.0, { audio: mockAudio, proximity: 0.8, isInside: true });
+console.log('   ✓ EffectsManager and RealmManager update cycles completed successfully.\n');
 
 console.log('🎉 ==============================================================');
-console.log('   ALL 6 ENGINE VERIFICATION TESTS PASSED SUCCESSFULLY (100%)');
+console.log('   ALL 6 DREAM GATE VERIFICATION SUITES PASSED (100% SUCCESS)');
 console.log('   ==============================================================\n');

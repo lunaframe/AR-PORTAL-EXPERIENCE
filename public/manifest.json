@@ -1,15 +1,15 @@
 {
-  "name": "Twilight Portal — WebXR AR Experience",
-  "short_name": "Twilight Portal",
-  "description": "Step through a glowing bioluminescent portal into a calming twilight realm with 43 visual effects and 3D spatial audio.",
+  "name": "Dream Gate — WebXR AR Experience",
+  "short_name": "Dream Gate",
+  "description": "Step through a surreal gate into dream worlds of floating sky-whales, bioluminescent oceans, and star libraries with 3D spatial audio.",
   "start_url": "/",
   "scope": "/",
   "id": "/?source=pwa",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#060414",
-  "theme_color": "#060414",
+  "background_color": "#0b0a2a",
+  "theme_color": "#0b0a2a",
   "categories": ["entertainment", "utilities", "photo"],
   "icons": [
     {
