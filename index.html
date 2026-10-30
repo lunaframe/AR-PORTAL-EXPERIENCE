@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0a2a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -13,6 +15,7 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/src/styles/dreamGate.css" />
 </head>
+
 <body>
 
   <!-- Fullscreen Rear Camera Video for iPhone Safari & Fallback -->
@@ -54,7 +57,8 @@
         Install app
       </button>
 
-      <p id="splash-support-hint" class="splash-support-hint hidden">WebXR requires Chrome on ARCore-supported Android devices.</p>
+      <p id="splash-support-hint" class="splash-support-hint hidden">WebXR requires Chrome on ARCore-supported Android
+        devices.</p>
     </div>
   </section>
 
@@ -89,12 +93,14 @@
       <div class="hud-actions">
         <!-- Sound Toggle -->
         <button id="btn-sound-toggle" class="icon-btn" aria-label="Toggle sound" title="Sound">
-          <svg id="icon-sound-on" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg id="icon-sound-on" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75"
+            fill="none" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
           </svg>
-          <svg id="icon-sound-off" class="hidden" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg id="icon-sound-off" class="hidden" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+            stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <line x1="23" y1="9" x2="17" y2="15"></line>
             <line x1="17" y1="9" x2="23" y2="15"></line>
@@ -103,7 +109,8 @@
 
         <!-- Dream Journal -->
         <button id="btn-journal" class="icon-btn" aria-label="Open journal" title="Journal">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
@@ -111,7 +118,8 @@
 
         <!-- Settings Drawer Toggle -->
         <button id="btn-effects-panel" class="icon-btn" aria-label="Settings" title="Settings">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
             <line x1="4" y1="21" x2="4" y2="14"></line>
             <line x1="4" y1="10" x2="4" y2="3"></line>
             <line x1="12" y1="21" x2="12" y2="12"></line>
@@ -126,7 +134,8 @@
 
         <!-- Exit Button -->
         <button id="btn-exit-ar" class="icon-btn" aria-label="Exit" title="Exit">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -156,7 +165,8 @@
       <div class="bottom-dock">
         <button id="btn-reset-gate" class="btn-dock hidden">Re-place gate</button>
         <button id="btn-screenshot" class="btn-dock" aria-label="Take photo">
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.75" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
             <circle cx="12" cy="13" r="4"></circle>
           </svg>
@@ -174,7 +184,7 @@
     <div class="summary-card">
       <h2 id="wake-title" class="summary-title">Awakened from dream</h2>
       <div id="wake-poetic-title" class="summary-poetic-title">"Whispers of the Threshold"</div>
-      
+
       <div class="summary-stats">
         <div class="stat-item">
           <span id="wake-fragments" class="stat-value">7 of 7</span>
@@ -187,7 +197,8 @@
       </div>
 
       <p class="summary-note">This reverie has been preserved in your dream journal.</p>
-      <button id="btn-close-wake-summary" class="btn-primary" style="width:100%;padding:12px 24px;">Continue dreaming</button>
+      <button id="btn-close-wake-summary" class="btn-primary" style="width:100%;padding:12px 24px;">Continue
+        dreaming</button>
     </div>
   </aside>
 
@@ -198,7 +209,8 @@
       <div class="sheet-header">
         <h2 class="sheet-title">Dream journal</h2>
         <button id="btn-close-journal" class="icon-btn" aria-label="Close journal">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -212,18 +224,20 @@
   <aside id="effects-modal" class="hidden">
     <div class="effects-sheet">
       <div class="sheet-handle"></div>
-      
+
       <div class="sheet-header">
         <h2 class="sheet-title">Settings & quality</h2>
         <button id="btn-close-effects" class="icon-btn" aria-label="Close settings">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
 
-      <button id="btn-cinematic-mode" class="btn-outline" style="width:100%;margin-bottom:16px;">Cinematic high quality</button>
+      <button id="btn-cinematic-mode" class="btn-outline" style="width:100%;margin-bottom:16px;">Cinematic high
+        quality</button>
 
       <!-- Quality Selector -->
       <div class="effects-group">
@@ -241,19 +255,21 @@
       <!-- Atmosphere Sliders -->
       <div class="effects-group">
         <span class="effects-group-title">Atmosphere</span>
-        
+
         <div class="slider-control">
           <div class="slider-control-header">
             <span>Gate brightness</span>
           </div>
-          <input id="intensity-slider" type="range" min="0.2" max="2.0" step="0.05" value="1.0" aria-label="Gate brightness" />
+          <input id="intensity-slider" type="range" min="0.2" max="2.0" step="0.05" value="1.0"
+            aria-label="Gate brightness" />
         </div>
 
         <div class="slider-control">
           <div class="slider-control-header">
             <span>Time of night</span>
           </div>
-          <input id="night-slider" type="range" min="0.0" max="1.0" step="0.02" value="0.5" aria-label="Time of night" />
+          <input id="night-slider" type="range" min="0.0" max="1.0" step="0.02" value="0.5"
+            aria-label="Time of night" />
         </div>
       </div>
 
@@ -316,4 +332,5 @@
   <!-- Application Main Orchestrator -->
   <script type="module" src="/src/main.js"></script>
 </body>
+
 </html>
