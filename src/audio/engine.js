@@ -59,17 +59,19 @@ export class AudioEngine {
     };
 
     // Auto pause on tab blur
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        if (this.ctx && this.ctx.state === 'running') {
-          this.ctx.suspend();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          if (this.ctx && this.ctx.state === 'running') {
+            this.ctx.suspend();
+          }
+        } else {
+          if (this.ctx && this.ctx.state === 'suspended' && !this.isMuted && this.isInitialized) {
+            this.ctx.resume();
+          }
         }
-      } else {
-        if (this.ctx && this.ctx.state === 'suspended' && !this.isMuted && this.isInitialized) {
-          this.ctx.resume();
-        }
-      }
-    });
+      });
+    }
   }
 
   /**

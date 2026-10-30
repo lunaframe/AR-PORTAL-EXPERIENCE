@@ -1,15 +1,15 @@
 {
-  "name": "AR Portal Effect - WebXR Portals",
-  "short_name": "AR Portals",
-  "description": "Step through immersive WebXR portals into other worlds with custom shaders and 3D spatial audio.",
+  "name": "Twilight Portal — WebXR AR Experience",
+  "short_name": "Twilight Portal",
+  "description": "Step through a glowing bioluminescent portal into a calming twilight realm with 43 visual effects and 3D spatial audio.",
   "start_url": "/",
   "scope": "/",
   "id": "/?source=pwa",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#050008",
-  "theme_color": "#050008",
+  "background_color": "#060414",
+  "theme_color": "#060414",
   "categories": ["entertainment", "utilities", "photo"],
   "icons": [
     {

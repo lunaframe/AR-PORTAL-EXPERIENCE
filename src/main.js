@@ -312,9 +312,14 @@ class TwilightPortalApp {
   }
 
   placeFallbackPortal() {
-    const forward = new THREE.Vector3(0, 0, -1.8).applyQuaternion(this.camera.quaternion);
-    const placePos = new THREE.Vector3().copy(this.camera.position).add(forward);
-    placePos.y = 0;
+    let placePos;
+    if (this.activeMode === 'preview') {
+      placePos = new THREE.Vector3(0, 0, -1.8);
+    } else {
+      const forward = new THREE.Vector3(0, 0, -1.8).applyQuaternion(this.camera.quaternion);
+      placePos = new THREE.Vector3().copy(this.camera.position).add(forward);
+      placePos.y = 0;
+    }
 
     this.portal.place(placePos, this.camera.position);
     this.isPlaced = true;
@@ -327,7 +332,10 @@ class TwilightPortalApp {
 
   toggleStepFallback() {
     if (!this.isPlaced) return;
-    if (!this.portal.isInsideVirtual) {
+    const entering = !this.portal.isInsideVirtual;
+    this.fallback.setInsideVirtual(entering);
+
+    if (entering) {
       // Step through into twilight world
       const forward = new THREE.Vector3(0, 0, -0.6).applyQuaternion(this.portal.group.quaternion);
       const insidePos = new THREE.Vector3(0, 1.2, 0).applyMatrix4(this.portal.group.matrixWorld).add(forward);

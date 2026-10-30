@@ -193,14 +193,25 @@ export class CameraModeFallback {
     if (!this.isActive) return;
 
     if (this.mode === 'preview') {
-      // Orbit around portal center (0, 1.2, -1.8)
-      const target = new THREE.Vector3(0, 1.2, -1.8);
+      // When stepped inside, orbit inside the twilight world
+      const target = this.isInside ? new THREE.Vector3(0, 1.2, -3.6) : new THREE.Vector3(0, 1.2, -1.8);
       const cx = target.x + Math.sin(this.orbitAngleX) * Math.cos(this.orbitAngleY) * this.orbitRadius;
       const cy = target.y + Math.sin(this.orbitAngleY) * this.orbitRadius;
       const cz = target.z + Math.cos(this.orbitAngleX) * Math.cos(this.orbitAngleY) * this.orbitRadius;
 
       this.camera.position.set(cx, cy, cz);
       this.camera.lookAt(target);
+    }
+  }
+
+  setInsideVirtual(inside) {
+    this.isInside = inside;
+    if (this.mode === 'camera') {
+      if (inside) {
+        this.camera.position.set(0, 1.3, -2.6);
+      } else {
+        this.camera.position.set(0, 1.3, 0);
+      }
     }
   }
 
