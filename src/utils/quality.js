@@ -7,7 +7,8 @@
 export class QualityManager {
   constructor(renderer) {
     this.renderer = renderer;
-    this.currentQuality = 'high';
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    this.currentQuality = isMobile ? 'low' : 'high';
     this.autoAdjust = true;
     this.listeners = new Set();
 

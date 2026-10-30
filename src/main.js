@@ -5,6 +5,9 @@
  */
 
 import * as THREE from 'three';
+import '@fontsource/instrument-serif';
+import '@fontsource/dm-sans';
+
 import { QualityManager } from './utils/quality.js';
 import { EffectsManager } from './effects/effectsManager.js';
 import { audioEngine } from './audio/engine.js';
@@ -17,6 +20,85 @@ import { UIManager } from './ui/uiManager.js';
 import { captureScreenshot } from './utils/screenshot.js';
 import { PostProcessingManager } from './effects/postprocessing/postManager.js';
 import { dreamJournal } from './journal/dreamJournal.js';
+
+class DebugOverlay {
+  constructor(app) {
+    this.app = app;
+    this.enabled = new URLSearchParams(window.location.search).get('debug') === '1';
+    this.dom = null;
+    this.lastError = 'none';
+    this.lastRejection = 'none';
+
+    window.addEventListener('error', (e) => {
+      this.lastError = `${e.message} (${e.filename ? e.filename.split('/').pop() : ''}:${e.lineno})`;
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      this.lastRejection = String(e.reason?.message || e.reason || 'rejection');
+    });
+
+    if (this.enabled) {
+      this.initDom();
+      setInterval(() => this.update(), 200);
+    }
+  }
+
+  initDom() {
+    this.dom = document.createElement('div');
+    this.dom.id = 'debug-overlay';
+    this.dom.style.cssText = `
+      position: fixed;
+      top: env(safe-area-inset-top, 8px);
+      left: env(safe-area-inset-left, 8px);
+      z-index: 999999;
+      background: rgba(11, 10, 42, 0.92);
+      border: 1px solid rgba(255, 210, 122, 0.5);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: monospace;
+      font-size: 10px;
+      line-height: 1.4;
+      color: #dfe9ff;
+      pointer-events: none;
+      max-width: 270px;
+      word-break: break-all;
+    `;
+    document.body.appendChild(this.dom);
+  }
+
+  update() {
+    if (!this.dom) return;
+    const renderer = this.app.renderer;
+    const gl = renderer ? renderer.getContext() : null;
+    const glAlpha = gl ? gl.getContextAttributes()?.alpha : false;
+    const xr = this.app.xrSession;
+    const audio = audioEngine.ctx;
+    const scrollW = document.documentElement.scrollWidth;
+    const innerW = window.innerWidth;
+    const isOverflow = scrollW > innerW;
+
+    console.assert(
+      !isOverflow,
+      `Horizontal overflow detected: scrollWidth (${scrollW}px) > innerWidth (${innerW}px)`
+    );
+
+    this.dom.innerHTML = `
+      <div style="font-weight:bold;color:#ffd27a;margin-bottom:2px;">Dream Gate Debug (?debug=1)</div>
+      <div>Session: <b>${this.app.activeMode}</b> (${xr?.xrSession ? 'XR Active' : 'No XR'})</div>
+      <div>Ref Space: <b>${xr?.refSpaceType || 'none'}</b></div>
+      <div>Renderer Alpha: <b>${glAlpha}</b></div>
+      <div>scene.bg: <b>${this.app.scene?.background === null ? 'null' : 'active'}</b></div>
+      <div>Loop Running: <b>${this.app.loopRunning}</b></div>
+      <div>Frame Count: <b>${this.app.frameCount}</b></div>
+      <div>Live FPS: <b style="color:${this.app.currentFps < 30 ? '#ff6b6b' : '#ffd27a'}">${this.app.currentFps}</b></div>
+      <div>Hit Test: <b>${xr?.hasHit ? 'LOCKED' : (this.app.activeMode === 'ar' ? 'Searching' : 'Idle')}</b> (${xr?.hitCount || 0})</div>
+      <div>AudioContext: <b>${audio?.state || 'uninitialized'}</b></div>
+      <div>Overflow: <b style="color:${isOverflow ? '#ff6b6b' : '#3df2d0'}">${isOverflow ? `YES (${scrollW} > ${innerW})` : 'NO'}</b></div>
+      ${this.lastError !== 'none' ? `<div style="color:#ff6b6b">Err: ${this.lastError}</div>` : ''}
+      ${this.lastRejection !== 'none' ? `<div style="color:#ffb347">Rej: ${this.lastRejection}</div>` : ''}
+    `;
+  }
+}
 
 class DreamGateApp {
   constructor() {
@@ -39,6 +121,7 @@ class DreamGateApp {
     this.fallback = null;
     this.ui = null;
     this.post = null;
+    this.debugOverlay = null;
 
     // State
     this.activeMode = 'none'; // 'ar' | 'camera' | 'preview'
@@ -46,6 +129,13 @@ class DreamGateApp {
     this.clock = new THREE.Clock();
     this.cameraWorldPos = new THREE.Vector3();
     this.dreamStartTime = 0;
+
+    // Loop & FPS computation
+    this.frameCount = 0;
+    this.fpsFrames = 0;
+    this.lastFpsTime = performance.now();
+    this.currentFps = 60;
+    this.loopRunning = false;
 
     // Crossing FOV punch
     this.baseFov = 70;
@@ -60,8 +150,10 @@ class DreamGateApp {
   }
 
   async init() {
-    // 1. Scene & Renderer
+    // 1. Scene & Renderer (transparent canvas for WebXR camera passthrough)
     this.scene = new THREE.Scene();
+    this.scene.background = null;
+
     this.camera = new THREE.PerspectiveCamera(this.baseFov, window.innerWidth / window.innerHeight, 0.05, 120);
     this.camera.position.set(0, 1.4, 1.8);
 
@@ -71,8 +163,9 @@ class DreamGateApp {
       alpha: true,
       powerPreference: 'high-performance',
       preserveDrawingBuffer: true,
-      stencil: true, // Crucial for portal doorway aperture mask
+      stencil: true, // Aperture mask
     });
+    this.renderer.setClearColor(0x000000, 0);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -95,9 +188,8 @@ class DreamGateApp {
     this.reticle = new MoonReticle(this.scene);
     this.realms = new RealmManager(this.scene, this.camera, this.renderer, this.effects);
 
-    // Sequence visual callbacks
+    // Visual sequence callbacks
     this.gate.sequence.onFlashTrigger = () => this.ui.showScreenFlash();
-    this.gate.sequence.onLetterboxToggle = (active) => this.ui.setLetterbox(active);
 
     // Traversal crossing callback
     this.gate.onRealmTransition = (entering) => {
@@ -107,16 +199,17 @@ class DreamGateApp {
     // Fragment collection callbacks
     this.realms.fragments.onFragmentCollected = (collected, total) => {
       this.ui.updateFragmentProgress(collected, total);
-      this.ui.showToast(`✦ Fragment ${collected}/${total} collected`);
+      this.ui.showToast(`Fragment ${collected} of ${total} found`);
     };
 
     this.realms.fragments.onAllCollected = () => {
-      this.ui.showToast('✨ All 7 Dream Fragments collected! Tap "Wake Up" when ready');
+      this.ui.showToast('All 7 fragments found. Tap Wake up when ready.');
       this.ui.dom.btnWakeUp?.classList.remove('hidden');
     };
 
-    // 4. Desktop/Camera Post-Processing (Bloom + Grain)
+    // 4. Desktop/Camera Post-Processing (Bloom + Grain) — Bypassed in AR
     this.post = new PostProcessingManager(this.renderer, this.scene, this.camera);
+    this.post.setEnabled(false);
 
     // 5. XR & Fallback Managers
     this.xrSession = new XRSessionManager(this.renderer, this.uiContainer);
@@ -129,32 +222,51 @@ class DreamGateApp {
     this.bindEvents();
     this.initGestures();
 
-    // 8. Detect platform and configure entry button
+    // 8. User tap AudioContext resume
+    this.initAudioGestureUnlock();
+
+    // 9. Detect platform and configure entry buttons
     await this.detectPlatform();
 
-    // 9. Resize Handling
+    // 10. Single Master Animation Loop: handles AR, Camera, and Preview
+    this.renderer.setAnimationLoop((time, frame) => {
+      this.onAnimationFrame(time, frame);
+    });
+
+    // 11. Debug overlay if ?debug=1
+    this.debugOverlay = new DebugOverlay(this);
+
+    // 12. Resize Handling (guarded so it does not resize XR session)
     window.addEventListener('resize', () => this.onResize());
+  }
+
+  initAudioGestureUnlock() {
+    const unlock = () => {
+      audioEngine.resume();
+    };
+    ['click', 'touchstart', 'pointerdown'].forEach((ev) => {
+      window.addEventListener(ev, unlock, { once: true, passive: true });
+    });
   }
 
   handleRealmCrossing(entering) {
     this.ui.showScreenFlash();
     this.ui.pulseVignette();
-    this.ui.triggerHaptic([40, 70, 150]);
+    this.ui.triggerHaptic([30, 60, 120]);
 
-    // FOV punch (widens briefly by 12 degrees then springs back)
-    this.fovPunch = entering ? 12 : -8;
+    this.fovPunch = entering ? 10 : -6;
     this.realms.setInsideVirtual(entering);
 
     if (entering) {
       this.dreamStartTime = performance.now();
-      this.ui.showToast(`✦ Entered ${this.getRealmDisplayName(this.gate.activeRealm)}`, 3000);
-      this.ui.setCoachText('Explore the realm • Find 7 hidden dream fragments');
+      this.ui.showToast(`Entered ${this.getRealmDisplayName(this.gate.activeRealm)}`, 2500);
+      this.ui.setCoachText('Explore the realm to find all 7 fragments.');
       this.ui.dom.btnWakeUp?.classList.remove('hidden');
-      if (this.ui.dom.btnStepFallback) this.ui.dom.btnStepFallback.textContent = '⚡ Step Outside';
+      if (this.ui.dom.btnStepFallback) this.ui.dom.btnStepFallback.textContent = 'Step outside';
     } else {
-      this.ui.showToast('✦ Returned to Real Room', 2500);
-      this.ui.setCoachText('Outside gate • Walk back in anytime');
-      if (this.ui.dom.btnStepFallback) this.ui.dom.btnStepFallback.textContent = '⚡ Step Through';
+      this.ui.showToast('Returned to room', 2000);
+      this.ui.setCoachText('Outside gate. Step through to enter.');
+      if (this.ui.dom.btnStepFallback) this.ui.dom.btnStepFallback.textContent = 'Step through';
     }
   }
 
@@ -194,7 +306,7 @@ class DreamGateApp {
       this.realms.setInsideVirtual(false);
       this.gate.isInsideVirtual = false;
       this.fallback.setInsideVirtual(false);
-      if (this.ui.dom.btnStepFallback) this.ui.dom.btnStepFallback.textContent = '⚡ Step Through';
+      if (this.ui.dom.btnStepFallback) this.ui.dom.btnStepFallback.textContent = 'Step through';
     });
   }
 
@@ -206,17 +318,20 @@ class DreamGateApp {
       this.ui.dom.btnEnterAR?.classList.remove('hidden');
       this.ui.dom.btnCameraMode?.classList.add('hidden');
       this.ui.dom.btnPreview?.classList.remove('hidden');
-      this.ui.setStatus('ARCore Ready');
+      this.ui.setStatus('AR ready');
     } else if (isMobile) {
       this.ui.dom.btnEnterAR?.classList.add('hidden');
       this.ui.dom.btnCameraMode?.classList.remove('hidden');
       this.ui.dom.btnPreview?.classList.remove('hidden');
-      this.ui.setStatus('Camera Mode');
+      if (this.ui.dom.splashSupportHint) {
+        this.ui.dom.splashSupportHint.classList.remove('hidden');
+      }
+      this.ui.setStatus('Camera mode');
     } else {
       this.ui.dom.btnEnterAR?.classList.add('hidden');
       this.ui.dom.btnCameraMode?.classList.add('hidden');
       this.ui.dom.btnPreview?.classList.remove('hidden');
-      this.ui.setStatus('3D Preview');
+      this.ui.setStatus('3D preview');
     }
   }
 
@@ -268,7 +383,7 @@ class DreamGateApp {
           break;
         case 'cinematic-mode':
           this.quality.setQuality('high');
-          this.effects.setMasterIntensity(1.35);
+          this.effects.setMasterIntensity(1.3);
           for (const grp of ['gate', 'particles', 'lighting', 'realm', 'reactive']) {
             this.effects.setGroupEnabled(grp, true);
           }
@@ -281,23 +396,32 @@ class DreamGateApp {
       if (!this.isPlaced) {
         this.reticle.setHitResult(hitResult);
         if (hitResult) {
-          this.ui.setCoachText('Tap anywhere to summon Dream Gate');
-          this.ui.setStatus('Surface Locked');
+          this.ui.setCoachText('Tap to open the gate.');
+          this.ui.setStatus('Floor found');
         } else {
-          this.ui.setCoachText('Move phone slowly across floor to scan');
-          this.ui.setStatus('Scanning...');
+          this.ui.setCoachText('Move your phone slowly to find the floor.');
+          this.ui.setStatus('Scanning');
         }
       }
     };
 
-    // XR Select (Tap in AR)
+    // 10-second surface timeout message
+    this.xrSession.onSurfaceTimeout = () => {
+      if (!this.isPlaced) {
+        this.ui.setCoachText('Move your phone slowly across the floor to find a surface.');
+        this.ui.showToast('Still scanning for a surface. Try aiming at a well-lit floor.');
+      }
+    };
+
+    // XR Select (Tap in AR to place gate)
     this.xrSession.onSelect = () => {
       if (!this.isPlaced && this.reticle.isLocked) {
         this.gate.place(this.reticle.group.position, this.camera.position);
+        this.realms.setGatePlaced(true);
         this.isPlaced = true;
         this.reticle.group.visible = false;
-        this.ui.setCoachText('Step through gate into dreamscape');
-        this.ui.setStatus('Gate Summoned');
+        this.ui.setCoachText('Step through to enter.');
+        this.ui.setStatus('Gate open');
         this.ui.dom.btnResetGate?.classList.remove('hidden');
         this.ui.dom.scaleSliderContainer?.classList.remove('hidden');
         this.ui.dom.sigilButtons?.forEach((b) => b.parentElement?.classList.remove('hidden'));
@@ -317,19 +441,20 @@ class DreamGateApp {
   async startAR() {
     try {
       this.activeMode = 'ar';
-      this.post.setEnabled(false); // Direct WebGL for WebXR ARCore
+      this.scene.background = null;
+      this.renderer.setClearColor(0x000000, 0);
+      this.post.setEnabled(false); // Strictly no EffectComposer in XR
+      this.realms.setGatePlaced(false); // Render ONLY reticle before gate is placed
+
       this.ui.hideSplash();
       this.ui.dom.btnPlaceFallback?.classList.add('hidden');
       this.ui.dom.btnStepFallback?.classList.add('hidden');
 
       await this.xrSession.start();
-
-      this.renderer.setAnimationLoop((time, frame) => {
-        this.renderAR(time, frame);
-      });
+      audioEngine.resume();
     } catch (err) {
       console.error('Failed to start WebXR session:', err);
-      this.ui.showToast(`AR error: ${err.message}. Starting Camera Mode...`);
+      this.ui.showToast(`AR error: ${err.message}. Starting camera mode.`);
       await this.startCameraMode();
     }
   }
@@ -341,12 +466,13 @@ class DreamGateApp {
     this.ui.dom.btnPlaceFallback?.classList.remove('hidden');
     this.ui.dom.btnStepFallback?.classList.remove('hidden');
 
-    await this.fallback.startCameraMode();
+    try {
+      await this.fallback.startCameraMode();
+    } catch (e) {
+      this.ui.showToast('Camera access was blocked. Allow it in site settings and reload.');
+    }
     this.placeFallbackGate();
-
-    this.renderer.setAnimationLoop((time) => {
-      this.renderFallback(time);
-    });
+    audioEngine.resume();
   }
 
   startPreviewMode() {
@@ -358,10 +484,7 @@ class DreamGateApp {
 
     this.fallback.startPreviewMode();
     this.placeFallbackGate();
-
-    this.renderer.setAnimationLoop((time) => {
-      this.renderFallback(time);
-    });
+    audioEngine.resume();
   }
 
   placeFallbackGate() {
@@ -375,9 +498,10 @@ class DreamGateApp {
     }
 
     this.gate.place(placePos, this.camera.position);
+    this.realms.setGatePlaced(true);
     this.isPlaced = true;
-    this.ui.setCoachText('Drag to look around • Click Step button to walk through');
-    this.ui.setStatus('Gate Active');
+    this.ui.setCoachText('Drag to look around. Click Step through to walk in.');
+    this.ui.setStatus('Gate open');
     this.ui.dom.btnPlaceFallback?.classList.add('hidden');
     this.ui.dom.btnResetGate?.classList.remove('hidden');
     this.ui.dom.scaleSliderContainer?.classList.remove('hidden');
@@ -406,9 +530,11 @@ class DreamGateApp {
     if (this.isPlaced) {
       this.gate.remove(() => {
         this.isPlaced = false;
+        this.realms.setGatePlaced(false);
         if (this.activeMode === 'ar') {
           this.reticle.group.visible = false;
-          this.ui.setCoachText('Scan floor to summon gate again');
+          this.ui.setCoachText('Move your phone slowly to find the floor.');
+          this.ui.setStatus('Scanning');
         } else {
           this.ui.dom.btnPlaceFallback?.classList.remove('hidden');
         }
@@ -424,7 +550,6 @@ class DreamGateApp {
     } else {
       this.fallback.stop();
       this.resetGate();
-      this.renderer.setAnimationLoop(null);
       this.ui.showSplash();
       this.activeMode = 'none';
       this.post.setEnabled(false);
@@ -432,8 +557,6 @@ class DreamGateApp {
   }
 
   initGestures() {
-    let pressTimer = null;
-
     window.addEventListener('touchstart', (e) => {
       if (e.touches.length === 2 && this.isPlaced) {
         this.isPinching = true;
@@ -443,18 +566,11 @@ class DreamGateApp {
         this.touchStartAngle = Math.atan2(dy, dx);
         this.initialScale = this.gate.scale;
         this.initialRotation = this.gate.group.rotation.y;
-      } else if (e.touches.length === 1 && this.isPlaced) {
-        pressTimer = setTimeout(() => {
-          this.ui.triggerHaptic([40, 60, 120]);
-          this.gate.sequence.triggerSparks();
-          this.ui.showToast('💥 Lucid Shockwave');
-        }, 650);
       }
     }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
       if (e.touches.length === 2 && this.isPinching && this.isPlaced) {
-        clearTimeout(pressTimer);
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const currentDist = Math.hypot(dx, dy);
@@ -467,20 +583,16 @@ class DreamGateApp {
 
         const deltaAngle = currentAngle - this.touchStartAngle;
         this.gate.setRotation(this.initialRotation + deltaAngle);
-      } else {
-        clearTimeout(pressTimer);
       }
     }, { passive: true });
 
     window.addEventListener('touchend', () => {
       this.isPinching = false;
-      clearTimeout(pressTimer);
     });
   }
 
   updateCommon(dt, time) {
     this.quality.update(dt);
-    this.ui.updateFps(this.quality.currentFps);
 
     // Spring FOV punch back
     if (Math.abs(this.fovPunch) > 0.1) {
@@ -493,7 +605,7 @@ class DreamGateApp {
     this.camera.getWorldPosition(this.cameraWorldPos);
     const distToGate = this.gate.checkCrossing(this.cameraWorldPos) || 2.0;
 
-    // Spatial Audio Listener & Proximity
+    // Spatial Audio Listener & Proximity (throttled inside engine)
     audioEngine.updateListener(this.camera);
     audioEngine.updateProximity(distToGate);
     const audioData = audioEngine.updateAnalysis();
@@ -510,6 +622,31 @@ class DreamGateApp {
     this.realms.update(dt, time, state);
   }
 
+  /**
+   * Master Animation Loop — Drives WebXR sessions & desktop/fallback
+   */
+  onAnimationFrame(timeMs, frame) {
+    this.frameCount++;
+    this.loopRunning = true;
+
+    // FPS calculation inside render loop
+    const now = performance.now();
+    const elapsed = (now - this.lastFpsTime) / 1000;
+    if (elapsed >= 0.5) {
+      this.currentFps = Math.round(this.fpsFrames / elapsed);
+      this.fpsFrames = 0;
+      this.lastFpsTime = now;
+      this.ui.updateFps(this.currentFps);
+    }
+    this.fpsFrames++;
+
+    if (this.activeMode === 'ar') {
+      this.renderAR(timeMs, frame);
+    } else if (this.activeMode === 'camera' || this.activeMode === 'preview') {
+      this.renderFallback(timeMs);
+    }
+  }
+
   renderAR(timeMs, frame) {
     const dt = this.clock.getDelta();
     const time = this.clock.getElapsedTime();
@@ -518,6 +655,7 @@ class DreamGateApp {
     this.reticle.update(dt, time);
     this.updateCommon(dt, time);
 
+    // Direct WebGL render with alpha=true and clearColor=0
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -537,8 +675,12 @@ class DreamGateApp {
   onResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.post?.setSize(window.innerWidth, window.innerHeight);
+
+    // Do NOT call renderer.setSize during active WebXR session
+    if (!this.renderer.xr.isPresenting) {
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.post?.setSize(window.innerWidth, window.innerHeight);
+    }
   }
 }
 

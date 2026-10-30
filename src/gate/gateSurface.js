@@ -152,6 +152,7 @@ export class GateSurfaceEffect {
 
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.position.set(0, 0, 0.005);
+    this.mesh.renderOrder = 3;
     this.gateGroup.add(this.mesh);
 
     // Stencil Mask Plane (Writes 1 to stencil buffer inside aperture)

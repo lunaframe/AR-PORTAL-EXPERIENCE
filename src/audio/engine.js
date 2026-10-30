@@ -1,25 +1,24 @@
 /**
  * engine.js — Procedural Web Audio Engine for "Dream Gate"
  * 
- * Features:
- * - Single AudioContext initialized/resumed on user tap
- * - Synthesized algorithmic impulse response convolver reverb
- * - Layer 1: Generative pentatonic ambient score with realm-adaptive harmonic moods:
- *     * Sky Garden: airy, celestial fifths, resonant sky-whale vocal calls
- *     * Midnight Ocean: submerged sub-bass drones, filtered wave foam, harmonic bell tides
- *     * Star Library: shimmering celeste arpeggios, cosmic wind, fluttering paper rustle
- * - Layer 2: 3D spatialized gate core hum with distance/proximity frequency modulation
- * - Layer 3: Dream Fragment collection chimes ascending through the scale (1 to 7)
- * - Layer 4: Procedural Sound Effects (gate summon crack, shockwave, portal traversal whoosh, wake-up heartbeat & bell)
- * - Spatial Audio: HRTF PannerNodes with camera listener position/orientation updates every frame
- * - Mute, master volume, and pause on visibilitychange
+ * Part 2 Fixes:
+ * - Single AudioContext resumed on first user tap & XR sessionstart with statechange handling
+ * - Signal chain: voices/submixes → masterGain → DynamicsCompressor (limiter) → destination
+ * - Audio graphs (ambient, gate hum, realm buses) built ONCE behind guard flags to eliminate duplicate loops and phasing
+ * - Parameter updates use setTargetAtTime(..., ctx.currentTime, 0.05..0.2) to eliminate clicks
+ * - Spatial listener and proximity throttled to ~15 Hz with smoothed AudioParam transitions
+ * - Lookahead scheduler (~25ms ticker scheduling ~100ms ahead) capping simultaneous one-shot voices at 12
+ * - Impulse response and noise buffers generated once and cached
+ * - Clean pause/resume on visibilitychange and teardown
  */
 
 export class AudioEngine {
   constructor() {
     this.ctx = null;
     this.masterGain = null;
+    this.limiter = null;
     this.reverbNode = null;
+    this.reverbGain = null;
     this.analyser = null;
     this.analyserData = null;
 
@@ -27,32 +26,41 @@ export class AudioEngine {
     this.volume = 0.8;
     this.isInitialized = false;
 
+    // Guard flags to prevent duplicate graph construction
+    this.hasAmbientGraph = false;
+    this.hasGateHumGraph = false;
+    this.hasRealmGraph = false;
+
     // Sub-mix gains
     this.realWorldGain = null;
     this.dreamWorldGain = null;
     this.lowPassRealWorld = null;
 
-    // Gate Hum
+    // Gate Hum graph nodes
     this.gatePanner = null;
     this.gateHumGain = null;
     this.gateHumOsc = null;
+    this.gateShimmerOsc = null;
     this.gateHumFilter = null;
 
-    // Adaptive Ambient Music
-    this.currentRealm = 'skyGarden'; // 'skyGarden' | 'midnightOcean' | 'starLibrary'
+    // Ambient Pad & Lookahead Scheduler
+    this.currentRealm = 'skyGarden';
     this.ambientGain = null;
-    this.ambientOscs = [];
-    this.ambientInterval = null;
+    this.schedulerTimer = null;
+    this.nextNoteTime = 0;
+    this.activeVoices = [];
+    this.maxOneShotVoices = 12;
 
-    // Realm Ambience Nodes
-    this.whaleGain = null;
-    this.oceanGain = null;
-    this.libraryGain = null;
+    // Cached Buffers
+    this.cachedReverbBuffer = null;
+    this.cachedNoiseBuffer = null;
 
-    // Spatial panners map for 3D entities (whales, fragments, lanterns, jellyfish)
-    this.spatialPanners = new Map();
+    // Rate-limiting for frame updates (~15 Hz = 0.066s interval)
+    this.lastListenerTime = 0;
+    this.lastProximityTime = 0;
+    this.lastProximityVal = 2.0;
 
-    // Frequency analysis
+    // Visual Reactivity Data
     this.audioData = {
       bass: 0,
       mid: 0,
@@ -60,26 +68,24 @@ export class AudioEngine {
       energy: 0,
     };
 
-    // Auto pause on tab blur
+    // Tab visibility handling
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
-          if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
+          this.pause();
         } else {
-          if (this.ctx && this.ctx.state === 'suspended' && !this.isMuted && this.isInitialized) {
-            this.ctx.resume();
-          }
+          this.resume();
         }
       });
     }
   }
 
   /**
-   * Initializes audio context on first user gesture
+   * Initializes AudioContext on user interaction
    */
   init() {
-    if (this.isInitialized) {
-      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.isInitialized && this.ctx) {
+      this.resume();
       return;
     }
 
@@ -89,191 +95,295 @@ export class AudioEngine {
       return;
     }
 
+    // 1. Single AudioContext
     this.ctx = new AudioContextClass();
+
+    this.ctx.addEventListener('statechange', () => {
+      // Keep track of audio state
+      if (this.ctx && this.ctx.state === 'running' && !this.schedulerTimer) {
+        this.startLookaheadScheduler();
+      }
+    });
+
     if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
 
-    // Master bus
+    // 2. Signal Chain: voices -> masterGain -> DynamicsCompressor (limiter) -> destination
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
 
-    // Dynamic Compressor for cinematic polish
-    const compressor = this.ctx.createDynamicsCompressor();
-    compressor.threshold.setValueAtTime(-18, this.ctx.currentTime);
-    compressor.knee.setValueAtTime(12, this.ctx.currentTime);
-    compressor.ratio.setValueAtTime(4, this.ctx.currentTime);
-    compressor.attack.setValueAtTime(0.005, this.ctx.currentTime);
-    compressor.release.setValueAtTime(0.25, this.ctx.currentTime);
+    this.limiter = this.ctx.createDynamicsCompressor();
+    this.limiter.threshold.setValueAtTime(-6, this.ctx.currentTime); // Limiter ceiling
+    this.limiter.knee.setValueAtTime(6, this.ctx.currentTime);
+    this.limiter.ratio.setValueAtTime(20, this.ctx.currentTime); // Hard limiter ratio
+    this.limiter.attack.setValueAtTime(0.003, this.ctx.currentTime);
+    this.limiter.release.setValueAtTime(0.15, this.ctx.currentTime);
 
-    this.masterGain.connect(compressor);
-    compressor.connect(this.ctx.destination);
+    this.masterGain.connect(this.limiter);
+    this.limiter.connect(this.ctx.destination);
 
-    // Algorithmic Convolver Reverb (Dream space)
+    // 3. Cached Reverb Convolver
+    this.cachedReverbBuffer = this.buildImpulseResponse(2.5, 2.0);
     this.reverbNode = this.ctx.createConvolver();
-    this.reverbNode.buffer = this.buildImpulseResponse(3.5, 2.2);
+    this.reverbNode.buffer = this.cachedReverbBuffer;
     this.reverbGain = this.ctx.createGain();
-    this.reverbGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+    this.reverbGain.gain.setValueAtTime(0.32, this.ctx.currentTime);
     this.reverbNode.connect(this.reverbGain);
     this.reverbGain.connect(this.masterGain);
 
-    // Realm buses: Real-world exterior vs Inside Dreamscape
+    // 4. Cached Noise Buffer (for impacts/cracks)
+    this.cachedNoiseBuffer = this.buildNoiseBuffer(0.25);
+
+    // 5. Analyser
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 256;
+    this.analyser.smoothingTimeConstant = 0.8;
+    this.analyserData = new Uint8Array(this.analyser.frequencyBinCount);
+    this.masterGain.connect(this.analyser);
+
+    // 6. Realm Buses (built once)
+    this.buildRealmGraph();
+
+    // 7. Ambient Graph (built once)
+    this.buildAmbientGraph();
+
+    // 8. Start Lookahead Scheduler for musical chimes
+    this.startLookaheadScheduler();
+
+    this.isInitialized = true;
+  }
+
+  resume() {
+    if (!this.ctx) {
+      this.init();
+      return;
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+    if (!this.schedulerTimer) {
+      this.startLookaheadScheduler();
+    }
+  }
+
+  pause() {
+    if (this.ctx && this.ctx.state === 'running') {
+      this.ctx.suspend().catch(() => {});
+    }
+    if (this.schedulerTimer) {
+      clearInterval(this.schedulerTimer);
+      this.schedulerTimer = null;
+    }
+  }
+
+  /**
+   * Pre-generates impulse response once
+   */
+  buildImpulseResponse(duration, decay) {
+    if (!this.ctx) return null;
+    const rate = this.ctx.sampleRate;
+    const len = Math.floor(rate * duration);
+    const buf = this.ctx.createBuffer(2, len, rate);
+    const left = buf.getChannelData(0);
+    const right = buf.getChannelData(1);
+
+    for (let i = 0; i < len; i++) {
+      const n = i / len;
+      const env = Math.pow(1 - n, decay);
+      left[i] = (Math.random() * 2 - 1) * env;
+      right[i] = (Math.random() * 2 - 1) * env;
+    }
+    return buf;
+  }
+
+  /**
+   * Pre-generates a white noise buffer once
+   */
+  buildNoiseBuffer(duration) {
+    if (!this.ctx) return null;
+    const rate = this.ctx.sampleRate;
+    const len = Math.floor(rate * duration);
+    const buf = this.ctx.createBuffer(1, len, rate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buf;
+  }
+
+  /**
+   * Builds realm submixes ONCE behind guard flag
+   */
+  buildRealmGraph() {
+    if (this.hasRealmGraph || !this.ctx) return;
+    this.hasRealmGraph = true;
+
     this.lowPassRealWorld = this.ctx.createBiquadFilter();
     this.lowPassRealWorld.type = 'lowpass';
-    this.lowPassRealWorld.frequency.setValueAtTime(850, this.ctx.currentTime);
+    this.lowPassRealWorld.frequency.setValueAtTime(800, this.ctx.currentTime);
 
     this.realWorldGain = this.ctx.createGain();
     this.realWorldGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
     this.dreamWorldGain = this.ctx.createGain();
-    this.dreamWorldGain.gain.setValueAtTime(0.25, this.ctx.currentTime); // Muffled when outside
+    this.dreamWorldGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
 
     this.lowPassRealWorld.connect(this.realWorldGain);
     this.realWorldGain.connect(this.masterGain);
     this.dreamWorldGain.connect(this.masterGain);
-
-    // Visual Reactivity Analyser
-    this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 512;
-    this.analyser.smoothingTimeConstant = 0.85;
-    this.analyserData = new Uint8Array(this.analyser.frequencyBinCount);
-    this.masterGain.connect(this.analyser);
-
-    // Start background systems
-    this.startAdaptiveAmbient();
-    this.isInitialized = true;
   }
 
   /**
-   * Generates a smooth, procedural stereo impulse response buffer for lush dream reverb
-   */
-  buildImpulseResponse(duration, decay) {
-    const sampleRate = this.ctx.sampleRate;
-    const length = Math.floor(sampleRate * duration);
-    const impulse = this.ctx.createBuffer(2, length, sampleRate);
-    const left = impulse.getChannelData(0);
-    const right = impulse.getChannelData(1);
-
-    for (let i = 0; i < length; i++) {
-      const n = i / length;
-      const envelope = Math.pow(1 - n, decay);
-      // Soft filtered white noise
-      left[i] = (Math.random() * 2 - 1) * envelope;
-      right[i] = (Math.random() * 2 - 1) * envelope;
-    }
-    return impulse;
-  }
-
-  /**
-   * Spatial Gate Hum with HRTF Panner
+   * Builds gate hum graph ONCE behind guard flag
    */
   setupGateHum(pos) {
+    if (!this.ctx) this.init();
     if (!this.ctx) return;
 
-    this.gatePanner = this.ctx.createPanner();
-    this.gatePanner.panningModel = 'HRTF';
-    this.gatePanner.distanceModel = 'inverse';
-    this.gatePanner.refDistance = 1.0;
-    this.gatePanner.maxDistance = 15.0;
-    this.gatePanner.rolloffFactor = 1.2;
+    if (!this.hasGateHumGraph) {
+      this.hasGateHumGraph = true;
 
-    if (pos) {
-      this.gatePanner.positionX.setValueAtTime(pos.x, this.ctx.currentTime);
-      this.gatePanner.positionY.setValueAtTime(pos.y, this.ctx.currentTime);
-      this.gatePanner.positionZ.setValueAtTime(pos.z, this.ctx.currentTime);
+      this.gatePanner = this.ctx.createPanner();
+      this.gatePanner.panningModel = 'HRTF';
+      this.gatePanner.distanceModel = 'inverse';
+      this.gatePanner.refDistance = 1.0;
+      this.gatePanner.maxDistance = 20.0;
+      this.gatePanner.rolloffFactor = 1.0;
+
+      this.gateHumGain = this.ctx.createGain();
+      this.gateHumGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
+
+      this.gateHumFilter = this.ctx.createBiquadFilter();
+      this.gateHumFilter.type = 'bandpass';
+      this.gateHumFilter.frequency.setValueAtTime(120, this.ctx.currentTime);
+      this.gateHumFilter.Q.setValueAtTime(2.5, this.ctx.currentTime);
+
+      // Deep root drone
+      this.gateHumOsc = this.ctx.createOscillator();
+      this.gateHumOsc.type = 'triangle';
+      this.gateHumOsc.frequency.setValueAtTime(65.4, this.ctx.currentTime); // C2
+
+      // Shimmer octave
+      this.gateShimmerOsc = this.ctx.createOscillator();
+      this.gateShimmerOsc.type = 'sine';
+      this.gateShimmerOsc.frequency.setValueAtTime(130.8, this.ctx.currentTime); // C3
+
+      const shimmerGain = this.ctx.createGain();
+      shimmerGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+
+      this.gateHumOsc.connect(this.gateHumFilter);
+      this.gateShimmerOsc.connect(shimmerGain);
+      shimmerGain.connect(this.gateHumFilter);
+
+      this.gateHumFilter.connect(this.gateHumGain);
+      this.gateHumGain.connect(this.gatePanner);
+      this.gatePanner.connect(this.realWorldGain);
+      if (this.reverbNode) this.gatePanner.connect(this.reverbNode);
+
+      this.gateHumOsc.start();
+      this.gateShimmerOsc.start();
     }
 
-    this.gateHumGain = this.ctx.createGain();
-    this.gateHumGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+    if (pos && this.gatePanner) {
+      const now = this.ctx.currentTime;
+      if (this.gatePanner.positionX) {
+        this.gatePanner.positionX.setTargetAtTime(pos.x, now, 0.08);
+        this.gatePanner.positionY.setTargetAtTime(pos.y, now, 0.08);
+        this.gatePanner.positionZ.setTargetAtTime(pos.z, now, 0.08);
+      }
+    }
 
-    this.gateHumFilter = this.ctx.createBiquadFilter();
-    this.gateHumFilter.type = 'bandpass';
-    this.gateHumFilter.frequency.setValueAtTime(120, this.ctx.currentTime);
-    this.gateHumFilter.Q.setValueAtTime(3.0, this.ctx.currentTime);
-
-    // Warm sub-drone oscillator
-    this.gateHumOsc = this.ctx.createOscillator();
-    this.gateHumOsc.type = 'triangle';
-    this.gateHumOsc.frequency.setValueAtTime(65.4, this.ctx.currentTime); // C2
-
-    // Secondary subtle shimmer oscillator
-    const shimmerOsc = this.ctx.createOscillator();
-    shimmerOsc.type = 'sine';
-    shimmerOsc.frequency.setValueAtTime(130.8, this.ctx.currentTime); // C3
-
-    const oscGain = this.ctx.createGain();
-    oscGain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-
-    this.gateHumOsc.connect(this.gateHumFilter);
-    shimmerOsc.connect(oscGain);
-    oscGain.connect(this.gateHumFilter);
-
-    this.gateHumFilter.connect(this.gateHumGain);
-    this.gateHumGain.connect(this.gatePanner);
-    this.gatePanner.connect(this.realWorldGain);
-    this.gatePanner.connect(this.reverbNode);
-
-    this.gateHumOsc.start();
-    shimmerOsc.start();
-
-    // Fade in hum
-    this.gateHumGain.gain.exponentialRampToValueAtTime(0.25, this.ctx.currentTime + 1.5);
+    // Smoothly fade in gate hum
+    if (this.gateHumGain) {
+      this.gateHumGain.gain.setTargetAtTime(0.22, this.ctx.currentTime, 0.2);
+    }
   }
 
   /**
-   * Generative Adaptive Pentatonic Dream Music
-   * Cycles gentle chords and melodies tailored to the active realm
+   * Builds ambient graph ONCE behind guard flag
    */
-  startAdaptiveAmbient() {
+  buildAmbientGraph() {
+    if (this.hasAmbientGraph || !this.ctx) return;
+    this.hasAmbientGraph = true;
+
     this.ambientGain = this.ctx.createGain();
     this.ambientGain.gain.setValueAtTime(0.18, this.ctx.currentTime);
     this.ambientGain.connect(this.dreamWorldGain);
-    this.ambientGain.connect(this.reverbNode);
+    if (this.reverbNode) this.ambientGain.connect(this.reverbNode);
+  }
 
-    // Pentatonic scale base frequencies (F3, G3, A3, C4, D4, F4, G4, A4)
-    const realmScales = {
-      skyGarden: [174.61, 196.00, 220.00, 261.63, 293.66, 349.23, 392.00, 440.00], // Airy F Major pentatonic
-      midnightOcean: [130.81, 146.83, 164.81, 196.00, 220.00, 261.63, 293.66], // Deep C Major pentatonic
-      starLibrary: [146.83, 164.81, 185.00, 220.00, 246.94, 293.66, 329.63], // Ethereal D Dorian
-    };
+  /**
+   * Lookahead Scheduler (~25ms interval, scheduling ~100ms ahead)
+   * Caps simultaneous voices at 12 to eliminate audio thread contention
+   */
+  startLookaheadScheduler() {
+    if (this.schedulerTimer) clearInterval(this.schedulerTimer);
+    if (!this.ctx) return;
 
-    let step = 0;
-    const playNote = () => {
+    this.nextNoteTime = this.ctx.currentTime + 0.1;
+
+    this.schedulerTimer = setInterval(() => {
       if (!this.ctx || this.ctx.state !== 'running') return;
 
-      const scale = realmScales[this.currentRealm] || realmScales.skyGarden;
-      const freq = scale[Math.floor(Math.random() * scale.length)];
+      const scheduleAhead = 0.100; // 100 ms lookahead
+      const currentTime = this.ctx.currentTime;
 
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
+      // Clean up finished voices
+      this.activeVoices = this.activeVoices.filter((v) => v.endTime > currentTime);
 
-      osc.type = this.currentRealm === 'starLibrary' ? 'sine' : 'triangle';
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(freq * 2.8, this.ctx.currentTime);
-
-      // Bell envelope (slow attack, long dreamy decay)
-      gain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.12, this.ctx.currentTime + 0.8);
-      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 4.5);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ambientGain);
-
-      osc.start();
-      osc.stop(this.ctx.currentTime + 4.6);
-
-      step++;
-      // Every 4 steps, trigger realm-specific ambience
-      if (step % 4 === 0) {
-        if (this.currentRealm === 'skyGarden') this.playSkyWhaleCall();
+      while (this.nextNoteTime < currentTime + scheduleAhead) {
+        this.scheduleAmbientNote(this.nextNoteTime);
+        // Interval between gentle notes (2.2s to 3.0s)
+        this.nextNoteTime += 2.2 + Math.random() * 0.8;
       }
+    }, 25);
+  }
+
+  scheduleAmbientNote(time) {
+    if (!this.ctx || !this.ambientGain) return;
+
+    // Prune oldest voice if voice cap reached
+    if (this.activeVoices.length >= this.maxOneShotVoices) {
+      const oldest = this.activeVoices.shift();
+      try {
+        oldest.gain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.02);
+        oldest.osc.stop(this.ctx.currentTime + 0.05);
+      } catch (e) {}
+    }
+
+    const realmScales = {
+      skyGarden: [174.61, 196.00, 220.00, 261.63, 293.66, 349.23, 392.00, 440.00], // F Major
+      midnightOcean: [130.81, 146.83, 164.81, 196.00, 220.00, 261.63, 293.66], // C Major
+      starLibrary: [146.83, 164.81, 185.00, 220.00, 246.94, 293.66, 329.63], // D Dorian
     };
 
-    this.ambientInterval = setInterval(playNote, 2200);
+    const scale = realmScales[this.currentRealm] || realmScales.skyGarden;
+    const freq = scale[Math.floor(Math.random() * scale.length)];
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    osc.type = this.currentRealm === 'starLibrary' ? 'sine' : 'triangle';
+    osc.frequency.setValueAtTime(freq, time);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(freq * 2.5, time);
+
+    const dur = 3.8;
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.setTargetAtTime(0.12, time, 0.2);
+    gain.gain.setTargetAtTime(0.0001, time + 0.9, 0.7);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ambientGain);
+
+    osc.start(time);
+    osc.stop(time + dur);
+
+    this.activeVoices.push({ osc, gain, endTime: time + dur });
   }
 
   setRealm(realmName) {
@@ -292,97 +402,95 @@ export class AudioEngine {
     const filter = this.ctx.createBiquadFilter();
 
     osc.type = 'sine';
-    // Deep harmonic glide
     osc.frequency.setValueAtTime(95, now);
     osc.frequency.exponentialRampToValueAtTime(140, now + 1.2);
-    osc.frequency.exponentialRampToValueAtTime(80, now + 3.2);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 3.0);
 
     filter.type = 'bandpass';
     filter.frequency.setValueAtTime(180, now);
     filter.Q.setValueAtTime(2.0, now);
 
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.2, now + 0.8);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 3.4);
+    gain.gain.setTargetAtTime(0.18, now, 0.25);
+    gain.gain.setTargetAtTime(0.0001, now + 1.2, 0.6);
 
     osc.connect(filter);
     filter.connect(gain);
 
-    if (position) {
+    if (position && this.ctx.createPanner) {
       const panner = this.ctx.createPanner();
       panner.panningModel = 'HRTF';
       panner.positionX.setValueAtTime(position.x, now);
       panner.positionY.setValueAtTime(position.y, now);
       panner.positionZ.setValueAtTime(position.z, now);
       gain.connect(panner);
-      panner.connect(this.dreamWorldGain);
-      panner.connect(this.reverbNode);
+      panner.connect(this.dreamWorldGain || this.masterGain);
+      if (this.reverbNode) panner.connect(this.reverbNode);
     } else {
-      gain.connect(this.dreamWorldGain);
-      gain.connect(this.reverbNode);
+      gain.connect(this.dreamWorldGain || this.masterGain);
+      if (this.reverbNode) gain.connect(this.reverbNode);
     }
 
     osc.start(now);
-    osc.stop(now + 3.5);
+    osc.stop(now + 3.2);
+    this.activeVoices.push({ osc, gain, endTime: now + 3.2 });
   }
 
   /**
-   * Sound Effect: Gate Summon Sequence (Crack, swell, and shockwave)
+   * Sound Effect: Gate Summon Sequence
    */
   playGateSummon(pos) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // 1. Floor crack / ignition click
-    const crackNode = this.ctx.createBufferSource();
-    const crackBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.08), this.ctx.sampleRate);
-    const data = crackBuffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.2));
-    crackNode.buffer = crackBuffer;
-
-    const crackGain = this.ctx.createGain();
-    crackGain.gain.setValueAtTime(0.4, now);
-    crackNode.connect(crackGain);
-    crackGain.connect(this.masterGain);
-    crackNode.start(now);
+    // 1. Floor crack from cached noise buffer
+    if (this.cachedNoiseBuffer) {
+      const crackNode = this.ctx.createBufferSource();
+      crackNode.buffer = this.cachedNoiseBuffer;
+      const crackGain = this.ctx.createGain();
+      crackGain.gain.setValueAtTime(0.3, now);
+      crackGain.gain.setTargetAtTime(0.0001, now + 0.04, 0.03);
+      crackNode.connect(crackGain);
+      crackGain.connect(this.masterGain);
+      crackNode.start(now);
+    }
 
     // 2. Rising harmonic swell
     const swellOsc = this.ctx.createOscillator();
     const swellGain = this.ctx.createGain();
+    const swellFilter = this.ctx.createBiquadFilter();
+
     swellOsc.type = 'sawtooth';
     swellOsc.frequency.setValueAtTime(60, now);
-    swellOsc.frequency.exponentialRampToValueAtTime(320, now + 1.2);
+    swellOsc.frequency.exponentialRampToValueAtTime(300, now + 1.1);
 
-    const swellFilter = this.ctx.createBiquadFilter();
     swellFilter.type = 'lowpass';
     swellFilter.frequency.setValueAtTime(200, now);
-    swellFilter.frequency.exponentialRampToValueAtTime(1600, now + 1.2);
+    swellFilter.frequency.exponentialRampToValueAtTime(1400, now + 1.1);
 
     swellGain.gain.setValueAtTime(0.001, now);
-    swellGain.gain.exponentialRampToValueAtTime(0.35, now + 1.0);
-    swellGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+    swellGain.gain.setTargetAtTime(0.28, now, 0.25);
+    swellGain.gain.setTargetAtTime(0.0001, now + 0.9, 0.3);
 
     swellOsc.connect(swellFilter);
     swellFilter.connect(swellGain);
     swellGain.connect(this.masterGain);
-    swellGain.connect(this.reverbNode);
+    if (this.reverbNode) swellGain.connect(this.reverbNode);
 
     swellOsc.start(now);
-    swellOsc.stop(now + 1.8);
+    swellOsc.stop(now + 1.6);
   }
 
   /**
-   * Sound Effect: Dream Fragment Collection (Ascending pentatonic chimes 1 to 7)
+   * Sound Effect: Dream Fragment Collection (Ascending chimes 1 to 7)
    */
   playFragmentChime(index = 1, pos = null) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Pentatonic scale ascending pitches for 7 fragments
-    const pitches = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 659.25]; // C4 to E5
+    const pitches = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 659.25];
     const baseFreq = pitches[Math.min(pitches.length - 1, Math.max(0, index - 1))];
 
-    // High crystalline sine + harmonic octave
     const osc1 = this.ctx.createOscillator();
     const osc2 = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
@@ -394,13 +502,13 @@ export class AudioEngine {
     osc2.frequency.setValueAtTime(baseFreq * 2.0, now);
 
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.3, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.2);
+    gain.gain.setTargetAtTime(0.25, now, 0.02);
+    gain.gain.setTargetAtTime(0.0001, now + 0.3, 0.5);
 
     osc1.connect(gain);
     osc2.connect(gain);
 
-    if (pos) {
+    if (pos && this.ctx.createPanner) {
       const panner = this.ctx.createPanner();
       panner.panningModel = 'HRTF';
       panner.positionX.setValueAtTime(pos.x, now);
@@ -408,41 +516,39 @@ export class AudioEngine {
       panner.positionZ.setValueAtTime(pos.z, now);
       gain.connect(panner);
       panner.connect(this.masterGain);
-      panner.connect(this.reverbNode);
+      if (this.reverbNode) panner.connect(this.reverbNode);
     } else {
       gain.connect(this.masterGain);
-      gain.connect(this.reverbNode);
+      if (this.reverbNode) gain.connect(this.reverbNode);
     }
 
     osc1.start(now);
     osc2.start(now);
-    osc1.stop(now + 2.2);
-    osc2.stop(now + 2.2);
+    osc1.stop(now + 2.0);
+    osc2.stop(now + 2.0);
   }
 
   /**
-   * Sound Effect: Wake-Up Pulse (Heartbeat & celestial bell)
+   * Sound Effect: Wake-Up Pulse
    */
   playWakeUpSound() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Heartbeat thud
     const heartOsc = this.ctx.createOscillator();
     const heartGain = this.ctx.createGain();
     heartOsc.type = 'sine';
     heartOsc.frequency.setValueAtTime(75, now);
     heartOsc.frequency.exponentialRampToValueAtTime(35, now + 0.35);
 
-    heartGain.gain.setValueAtTime(0.5, now);
-    heartGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    heartGain.gain.setValueAtTime(0.4, now);
+    heartGain.gain.setTargetAtTime(0.0001, now + 0.15, 0.1);
 
     heartOsc.connect(heartGain);
     heartGain.connect(this.masterGain);
     heartOsc.start(now);
-    heartOsc.stop(now + 0.45);
+    heartOsc.stop(now + 0.4);
 
-    // Celestial chime
     setTimeout(() => {
       if (!this.ctx) return;
       const bellTime = this.ctx.currentTime;
@@ -450,73 +556,86 @@ export class AudioEngine {
       const bellGain = this.ctx.createGain();
       bellOsc.type = 'sine';
       bellOsc.frequency.setValueAtTime(587.33, bellTime); // D5
-      bellGain.gain.setValueAtTime(0.3, bellTime);
-      bellGain.gain.exponentialRampToValueAtTime(0.0001, bellTime + 3.0);
+      bellGain.gain.setValueAtTime(0.25, bellTime);
+      bellGain.gain.setTargetAtTime(0.0001, bellTime + 0.4, 0.8);
       bellOsc.connect(bellGain);
       bellGain.connect(this.masterGain);
-      bellGain.connect(this.reverbNode);
+      if (this.reverbNode) bellGain.connect(this.reverbNode);
       bellOsc.start(bellTime);
-      bellOsc.stop(bellTime + 3.0);
-    }, 300);
+      bellOsc.stop(bellTime + 2.8);
+    }, 280);
   }
 
   /**
    * Crossing transition cross-fade
    */
   playCrossingTransition(entering) {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.dreamWorldGain || !this.realWorldGain) return;
     const now = this.ctx.currentTime;
 
     if (entering) {
-      // Step into Dream Realm: open wide and rich
-      this.dreamWorldGain.gain.linearRampToValueAtTime(1.0, now + 0.6);
-      this.realWorldGain.gain.linearRampToValueAtTime(0.35, now + 0.6);
+      this.dreamWorldGain.gain.setTargetAtTime(1.0, now, 0.2);
+      this.realWorldGain.gain.setTargetAtTime(0.3, now, 0.2);
     } else {
-      // Step back outside into real room
-      this.dreamWorldGain.gain.linearRampToValueAtTime(0.25, now + 0.6);
-      this.realWorldGain.gain.linearRampToValueAtTime(1.0, now + 0.6);
+      this.dreamWorldGain.gain.setTargetAtTime(0.2, now, 0.2);
+      this.realWorldGain.gain.setTargetAtTime(1.0, now, 0.2);
     }
   }
 
   /**
-   * Updates 3D audio listener orientation from camera
+   * Updates 3D audio listener orientation from camera (rate-limited to ~15 Hz)
    */
   updateListener(camera) {
     if (!this.ctx || !camera) return;
+    const now = performance.now();
+    // Throttled to ~15 Hz (66 ms)
+    if (now - this.lastListenerTime < 66) return;
+    this.lastListenerTime = now;
+
+    const t = this.ctx.currentTime;
+    const tc = 0.08;
     const p = camera.position;
     const l = this.ctx.listener;
 
     if (l.positionX) {
-      l.positionX.setValueAtTime(p.x, this.ctx.currentTime);
-      l.positionY.setValueAtTime(p.y, this.ctx.currentTime);
-      l.positionZ.setValueAtTime(p.z, this.ctx.currentTime);
-    } else {
+      l.positionX.setTargetAtTime(p.x, t, tc);
+      l.positionY.setTargetAtTime(p.y, t, tc);
+      l.positionZ.setTargetAtTime(p.z, t, tc);
+    } else if (l.setPosition) {
       l.setPosition(p.x, p.y, p.z);
     }
 
     const forward = camera.getWorldDirection(new Float32Array(3));
     const up = camera.up;
     if (l.forwardX) {
-      l.forwardX.setValueAtTime(forward.x, this.ctx.currentTime);
-      l.forwardY.setValueAtTime(forward.y, this.ctx.currentTime);
-      l.forwardZ.setValueAtTime(forward.z, this.ctx.currentTime);
-      l.upX.setValueAtTime(up.x, this.ctx.currentTime);
-      l.upY.setValueAtTime(up.y, this.ctx.currentTime);
-      l.upZ.setValueAtTime(up.z, this.ctx.currentTime);
+      l.forwardX.setTargetAtTime(forward.x, t, tc);
+      l.forwardY.setTargetAtTime(forward.y, t, tc);
+      l.forwardZ.setTargetAtTime(forward.z, t, tc);
+      l.upX.setTargetAtTime(up.x, t, tc);
+      l.upY.setTargetAtTime(up.y, t, tc);
+      l.upZ.setTargetAtTime(up.z, t, tc);
+    } else if (l.setOrientation) {
+      l.setOrientation(forward.x, forward.y, forward.z, up.x, up.y, up.z);
     }
   }
 
   /**
-   * Updates gate proximity hum intensity
+   * Updates gate proximity hum (rate-limited to ~15 Hz)
    */
   updateProximity(distance) {
     if (!this.gateHumGain || !this.ctx) return;
-    const factor = Math.max(0, Math.min(1.0, 1.0 - distance / 4.0));
-    const targetGain = 0.08 + factor * 0.45;
-    this.gateHumGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.1);
+    const now = performance.now();
+    // Throttled to ~15 Hz
+    if (now - this.lastProximityTime < 66) return;
+    this.lastProximityTime = now;
 
+    const factor = Math.max(0, Math.min(1.0, 1.0 - distance / 3.8));
+    const targetGain = 0.05 + factor * 0.35;
+    const t = this.ctx.currentTime;
+
+    this.gateHumGain.gain.setTargetAtTime(targetGain, t, 0.1);
     if (this.gateHumFilter) {
-      this.gateHumFilter.frequency.setTargetAtTime(100 + factor * 220, this.ctx.currentTime, 0.1);
+      this.gateHumFilter.frequency.setTargetAtTime(90 + factor * 220, t, 0.1);
     }
   }
 
@@ -531,12 +650,12 @@ export class AudioEngine {
     const binCount = this.analyserData.length;
 
     for (let i = 0; i < 8; i++) bSum += this.analyserData[i];
-    for (let i = 8; i < 48; i++) mSum += this.analyserData[i];
-    for (let i = 48; i < binCount; i++) tSum += this.analyserData[i];
+    for (let i = 8; i < 40; i++) mSum += this.analyserData[i];
+    for (let i = 40; i < binCount; i++) tSum += this.analyserData[i];
 
     this.audioData.bass = bSum / (8 * 255);
-    this.audioData.mid = mSum / (40 * 255);
-    this.audioData.treble = tSum / ((binCount - 48) * 255);
+    this.audioData.mid = mSum / (32 * 255);
+    this.audioData.treble = tSum / ((binCount - 40) * 255);
     this.audioData.energy = (this.audioData.bass + this.audioData.mid + this.audioData.treble) / 3;
 
     return this.audioData;
@@ -545,7 +664,8 @@ export class AudioEngine {
   toggleMute() {
     this.isMuted = !this.isMuted;
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : this.volume, this.ctx.currentTime);
+      const t = this.ctx.currentTime;
+      this.masterGain.gain.setTargetAtTime(this.isMuted ? 0 : this.volume, t, 0.05);
     }
     return !this.isMuted;
   }
@@ -560,14 +680,44 @@ export class AudioEngine {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(680, now);
-    osc.frequency.exponentialRampToValueAtTime(1100, now + 0.04);
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    osc.frequency.setValueAtTime(640, now);
+    osc.frequency.exponentialRampToValueAtTime(1050, now + 0.035);
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.setTargetAtTime(0.0001, now + 0.02, 0.02);
     osc.connect(gain);
     gain.connect(this.masterGain);
     osc.start(now);
     osc.stop(now + 0.05);
+  }
+
+  teardown() {
+    if (this.schedulerTimer) {
+      clearInterval(this.schedulerTimer);
+      this.schedulerTimer = null;
+    }
+    for (const v of this.activeVoices) {
+      try {
+        v.osc.stop();
+        v.osc.disconnect();
+      } catch (e) {}
+    }
+    this.activeVoices = [];
+
+    if (this.gateHumOsc) {
+      try {
+        this.gateHumOsc.stop();
+        this.gateHumOsc.disconnect();
+      } catch (e) {}
+    }
+    if (this.gateShimmerOsc) {
+      try {
+        this.gateShimmerOsc.stop();
+        this.gateShimmerOsc.disconnect();
+      } catch (e) {}
+    }
+    this.hasAmbientGraph = false;
+    this.hasGateHumGraph = false;
+    this.hasRealmGraph = false;
   }
 }
 

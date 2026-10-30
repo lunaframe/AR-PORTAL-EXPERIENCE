@@ -32,15 +32,19 @@ export class RealmManager {
       starLibrary: new StarLibraryRealm(this.scene, this.camera),
     };
 
-    // Initialize all realms
+    // Initialize all realms (hidden until gate is placed)
     this.realms.skyGarden.init();
     this.realms.midnightOcean.init();
     this.realms.starLibrary.init();
 
-    // Default to Sky Garden visible
-    this.realms.skyGarden.group.visible = true;
+    this.isPlaced = false;
+    this.realms.skyGarden.group.visible = false;
     this.realms.midnightOcean.group.visible = false;
     this.realms.starLibrary.group.visible = false;
+    this.fragments.group.visible = false;
+
+    // Apply stencil render orders
+    this.applyRealmRenderOrders(false);
 
     // Init fragments for Sky Garden
     this.initRealmFragments('skyGarden');
@@ -85,6 +89,18 @@ export class RealmManager {
     this.fragments.init(coordsMap[realmId] || coordsMap.skyGarden);
   }
 
+  setGatePlaced(isPlaced) {
+    this.isPlaced = !!isPlaced;
+    for (const [id, r] of Object.entries(this.realms)) {
+      if (r) {
+        r.group.visible = this.isPlaced && (id === this.activeRealmId);
+      }
+    }
+    if (this.fragments) {
+      this.fragments.group.visible = this.isPlaced;
+    }
+  }
+
   setRealm(realmId) {
     if (this.activeRealmId === realmId) return;
     this.activeRealmId = realmId;
@@ -92,13 +108,29 @@ export class RealmManager {
     // Hide or show realms
     for (const [id, r] of Object.entries(this.realms)) {
       if (r) {
-        r.group.visible = (id === realmId);
+        r.group.visible = this.isPlaced && (id === realmId);
       }
     }
 
     // Reset fragment collection for new realm
     this.initRealmFragments(realmId);
     this.setInsideVirtual(this.isInsideVirtual);
+  }
+
+  applyRealmRenderOrders(isInside) {
+    const order = isInside ? 0 : 2;
+    for (const r of Object.values(this.realms)) {
+      if (r && r.group) {
+        r.group.traverse((obj) => {
+          if (obj.isMesh) obj.renderOrder = order;
+        });
+      }
+    }
+    if (this.fragments && this.fragments.group) {
+      this.fragments.group.traverse((obj) => {
+        if (obj.isMesh) obj.renderOrder = order;
+      });
+    }
   }
 
   setInsideVirtual(isInside) {
@@ -108,7 +140,10 @@ export class RealmManager {
     for (const r of Object.values(this.realms)) {
       if (r) r.setStencilFunc(stencilFunc);
     }
-    this.fragments.setStencilFunc(stencilFunc);
+    if (this.fragments) {
+      this.fragments.setStencilFunc(stencilFunc);
+    }
+    this.applyRealmRenderOrders(isInside);
   }
 
   update(dt, time, state) {

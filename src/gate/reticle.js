@@ -95,6 +95,7 @@ export class MoonReticle {
       this.targetQuaternion.copy(hitResult.orientation);
       this.ringMat.uniforms.uLocked.value = 1.0;
     } else {
+      this.group.visible = false;
       this.isLocked = false;
       this.ringMat.uniforms.uLocked.value = 0.0;
     }

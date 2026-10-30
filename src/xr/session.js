@@ -1,9 +1,11 @@
 /**
  * session.js — WebXR Immersive-AR Session Manager
  * Handles:
- * - Session request with 'hit-test', 'dom-overlay', 'local-floor', and 'light-estimation'
- * - AR Hit-Testing against real-world floor/wall surfaces
- * - WebXR Light Estimation (ambient intensity & spherical harmonics tint)
+ * - Session request with required 'hit-test', optional 'dom-overlay', 'local-floor', 'light-estimation'
+ * - Reference space fallback: tries 'local-floor', falls back to 'local'
+ * - AR Hit-Testing against real-world floor/wall surfaces from viewer space
+ * - Reticle visibility and 10s surface search timeout notice
+ * - DOM Overlay transparency class ('xr-active') toggle
  * - Clean session lifecycle & exit handling
  */
 
@@ -16,16 +18,20 @@ export class XRSessionManager {
 
     this.xrSession = null;
     this.xrRefSpace = null;
+    this.refSpaceType = 'none';
     this.hitTestSource = null;
     this.hitTestSourceRequested = false;
 
-    // Hit test reticle transform
+    // Hit test state
     this.hitPose = null;
     this.hasHit = false;
+    this.hitCount = 0;
+    this.sessionStartTime = 0;
+    this.lastHitTime = 0;
+    this.surfaceTimeoutReported = false;
 
     // Light estimation
     this.lightProbe = null;
-    this.lightEstimator = null;
     this.estimatedLightIntensity = 1.0;
     this.estimatedLightColor = new THREE.Color(0xffffff);
 
@@ -34,6 +40,7 @@ export class XRSessionManager {
     this.onSessionEnded = null;
     this.onHitResult = null;
     this.onSelect = null;
+    this.onSurfaceTimeout = null;
   }
 
   static async checkSupport() {
@@ -49,11 +56,13 @@ export class XRSessionManager {
   }
 
   async start() {
-    if (!navigator.xr) throw new Error('WebXR is not supported on this browser.');
+    if (!navigator.xr) {
+      throw new Error('WebXR is not supported on this browser.');
+    }
 
     const sessionInit = {
-      requiredFeatures: ['hit-test', 'local-floor'],
-      optionalFeatures: ['dom-overlay', 'light-estimation'],
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay', 'local-floor', 'light-estimation'],
     };
 
     if (this.domOverlayRoot) {
@@ -62,15 +71,49 @@ export class XRSessionManager {
 
     const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
     this.xrSession = session;
+    this.sessionStartTime = performance.now();
+    this.lastHitTime = 0;
+    this.surfaceTimeoutReported = false;
+
+    // Add xr-active class to DOM overlay root and body/html for transparent camera view
+    document.documentElement.classList.add('xr-active');
+    document.body.classList.add('xr-active');
+    if (this.domOverlayRoot) {
+      this.domOverlayRoot.classList.add('xr-active');
+    }
 
     // Connect to Three.js WebGLRenderer
     this.renderer.xr.enabled = true;
-    this.renderer.xr.setReferenceSpaceType('local-floor');
+    try {
+      this.renderer.xr.setFramebufferScaleFactor(1.0);
+    } catch (e) {
+      console.debug('setFramebufferScaleFactor not available:', e);
+    }
+
+    // Reference space setup with fallback from local-floor to local
+    let refSpace = null;
+    let chosenType = 'local-floor';
+    try {
+      refSpace = await session.requestReferenceSpace('local-floor');
+      this.renderer.xr.setReferenceSpaceType('local-floor');
+      chosenType = 'local-floor';
+    } catch (err) {
+      console.warn('local-floor reference space unavailable, falling back to local:', err);
+      try {
+        refSpace = await session.requestReferenceSpace('local');
+        this.renderer.xr.setReferenceSpaceType('local');
+        chosenType = 'local';
+      } catch (errLocal) {
+        console.error('Failed to acquire local reference space:', errLocal);
+        throw errLocal;
+      }
+    }
+    this.xrRefSpace = refSpace;
+    this.refSpaceType = chosenType;
+
     await this.renderer.xr.setSession(session);
 
-    this.xrRefSpace = await session.requestReferenceSpace('local-floor');
-
-    // Input controller select event (screen tap in AR)
+    // Screen tap / primary input
     session.addEventListener('select', (e) => {
       this.onSelect?.(e);
     });
@@ -79,7 +122,7 @@ export class XRSessionManager {
       this.handleSessionEnd();
     });
 
-    // Request light probe if supported
+    // Optional Light estimation
     try {
       if ('requestLightProbe' in session) {
         this.lightProbe = await session.requestLightProbe();
@@ -98,49 +141,68 @@ export class XRSessionManager {
     if (!frame || !this.xrSession) return;
 
     const referenceSpace = this.renderer.xr.getReferenceSpace() || this.xrRefSpace;
+    if (!referenceSpace) return;
 
-    // Request hit-test source once session reference space is established
+    // Request viewer-space hit-test source once
     if (!this.hitTestSourceRequested) {
-      this.xrSession.requestReferenceSpace('viewer').then((viewerSpace) => {
-        this.xrSession.requestHitTestSource({ space: viewerSpace }).then((source) => {
-          this.hitTestSource = source;
-        }).catch((err) => {
-          console.warn('Hit test source request failed:', err);
-        });
-      });
       this.hitTestSourceRequested = true;
+      this.xrSession.requestReferenceSpace('viewer').then((viewerSpace) => {
+        return this.xrSession.requestHitTestSource({ space: viewerSpace });
+      }).then((source) => {
+        this.hitTestSource = source;
+      }).catch((err) => {
+        console.warn('Viewer hit-test source request failed:', err);
+      });
     }
 
-    // Process hit test results
+    // Process hit-test
     if (this.hitTestSource) {
-      const hitTestResults = frame.getHitTestResults(this.hitTestSource);
-      if (hitTestResults.length > 0) {
-        const hit = hitTestResults[0];
-        const pose = hit.getPose(referenceSpace);
-        if (pose) {
-          this.hasHit = true;
-          this.hitPose = pose;
-          this.onHitResult?.({
-            matrix: new THREE.Matrix4().fromArray(pose.transform.matrix),
-            position: new THREE.Vector3(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z),
-            orientation: new THREE.Quaternion(pose.transform.orientation.x, pose.transform.orientation.y, pose.transform.orientation.z, pose.transform.orientation.w),
-          });
+      try {
+        const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+        if (hitTestResults && hitTestResults.length > 0) {
+          const hit = hitTestResults[0];
+          const pose = hit.getPose(referenceSpace);
+          if (pose) {
+            this.hasHit = true;
+            this.hitPose = pose;
+            this.hitCount++;
+            this.lastHitTime = performance.now();
+            this.onHitResult?.({
+              matrix: new THREE.Matrix4().fromArray(pose.transform.matrix),
+              position: new THREE.Vector3(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z),
+              orientation: new THREE.Quaternion(pose.transform.orientation.x, pose.transform.orientation.y, pose.transform.orientation.z, pose.transform.orientation.w),
+            });
+          } else {
+            this.hasHit = false;
+            this.onHitResult?.(null);
+          }
+        } else {
+          this.hasHit = false;
+          this.onHitResult?.(null);
         }
-      } else {
+      } catch (err) {
         this.hasHit = false;
         this.onHitResult?.(null);
       }
     }
 
-    // Process light estimation
+    // 10-second timeout check for surface scanning
+    const now = performance.now();
+    if (!this.surfaceTimeoutReported && (now - this.sessionStartTime > 10000) && (!this.lastHitTime || (now - this.lastHitTime > 8000))) {
+      this.surfaceTimeoutReported = true;
+      this.onSurfaceTimeout?.();
+    }
+
+    // Process optional light estimation
     if (this.lightProbe && frame.getLightEstimate) {
-      const estimate = frame.getLightEstimate(this.lightProbe);
-      if (estimate) {
-        // Pixel intensity & color temperature
-        const primaryLight = estimate.primaryLightIntensity;
-        if (primaryLight) {
-          this.estimatedLightColor.setRGB(primaryLight.x, primaryLight.y, primaryLight.z);
+      try {
+        const estimate = frame.getLightEstimate(this.lightProbe);
+        if (estimate && estimate.primaryLightIntensity) {
+          const pli = estimate.primaryLightIntensity;
+          this.estimatedLightColor.setRGB(pli.x, pli.y, pli.z);
         }
+      } catch (e) {
+        // Safe swallow
       }
     }
   }
@@ -152,11 +214,19 @@ export class XRSessionManager {
   }
 
   handleSessionEnd() {
+    document.documentElement.classList.remove('xr-active');
+    document.body.classList.remove('xr-active');
+    if (this.domOverlayRoot) {
+      this.domOverlayRoot.classList.remove('xr-active');
+    }
+
     this.hitTestSource = null;
     this.hitTestSourceRequested = false;
     this.hasHit = false;
+    this.hitPose = null;
     this.xrSession = null;
     this.renderer.xr.enabled = false;
+    this.refSpaceType = 'none';
     this.onSessionEnded?.();
   }
 }

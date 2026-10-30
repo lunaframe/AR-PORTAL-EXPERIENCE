@@ -19,9 +19,8 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: true,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
-      // A-Frame is loaded from CDN — mark as external to avoid bundling it twice
-      // (A-Frame already bundles its own THREE.js; we use window.AFRAME.THREE at runtime)
       external: [],
     },
   },

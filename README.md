@@ -142,10 +142,41 @@ npx vite --host --https
 ```
 
 ### Option C: Chrome Remote Debugging (Android via USB)
-1. Connect your Android phone to your computer via USB with **USB Debugging** enabled.
-2. In desktop Chrome, open `chrome://inspect`.
-3. In **Port Forwarding**, forward port `3000` to `localhost:3000`.
-4. On your mobile Chrome browser, navigate to `http://localhost:3000` (Chrome treats `localhost` as secure).
+1. Enable **Developer Options** on your Android phone (Settings → About Phone → Tap *Build Number* 7 times).
+2. Inside Developer Options, turn on **USB Debugging**.
+3. Connect your Android phone to your computer with a USB cable. Accept the "Allow USB debugging?" prompt on your phone.
+4. On your desktop Chrome, navigate to `chrome://inspect/#devices`.
+5. You will see your phone model listed under **Remote Target**.
+6. Under **Port Forwarding**, add a rule mapping port `3000` to `localhost:3000`, and check **Enable port forwarding**.
+7. On your phone's Chrome browser, navigate to:
+   ```
+   http://localhost:3000
+   ```
+   (Chrome treats `localhost` as a secure origin, allowing full WebXR ARCore access without certificate warnings).
+8. Click **inspect** next to the tab in `chrome://inspect/#devices` on your desktop computer to view real-time mobile console logs, WebGL context events, and network requests.
+
+---
+
+## ✦ 8. Debug Mode (?debug=1)
+
+Append `?debug=1` to the URL on desktop or mobile:
+```
+https://your-deployment.vercel.app/?debug=1
+# or
+http://localhost:3000/?debug=1
+```
+
+This brings up a persistent diagnostics HUD showing:
+* **Session**: Active mode (`ar`, `camera`, `preview`) and whether the WebXR session is active.
+* **Ref Space**: Chosen reference space (`local-floor`, with automatic fallback to `local`).
+* **Renderer Alpha**: Verifies WebGL context `alpha: true` for camera passthrough.
+* **scene.bg**: Confirms `scene.background = null` (no opaque background blocking the camera).
+* **Loop Running & Frame Count**: Live counter ensuring `setAnimationLoop` is actively firing.
+* **Live FPS**: Live frame rate computed inside the XR animation loop.
+* **Hit Test**: Status (`LOCKED` or `Searching`), hit count, and hit-test pose resolution.
+* **AudioContext**: Web Audio state (`running`, `suspended`, or `interrupted`).
+* **Overflow**: Real-time assertion of `document.documentElement.scrollWidth <= window.innerWidth`.
+* **Errors / Rejections**: Caught window errors or unhandled promise rejections.
 
 ---
 

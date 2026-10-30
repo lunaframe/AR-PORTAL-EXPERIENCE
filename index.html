@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#0b0a2a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="Dream Gate — Immersive WebXR Augmented Reality Portal into Surreal Dream Worlds" />
-  <title>Dream Gate — Immersive WebXR AR Experience</title>
+  <meta name="description" content="Dream Gate — Immersive WebXR Augmented Reality Portal" />
+  <title>Dream Gate</title>
 
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="manifest" href="/manifest.json" />
@@ -15,7 +15,7 @@
 </head>
 <body>
 
-  <!-- Fullscreen Rear Camera Video for iPhone Safari & Unsupported Fallback -->
+  <!-- Fullscreen Rear Camera Video for iPhone Safari & Fallback -->
   <video id="camera-video" playsinline webkit-playsinline muted autoplay></video>
 
   <!-- WebGL Render Canvas -->
@@ -25,52 +25,36 @@
   <div id="wake-up-overlay"></div>
   <div id="screen-flash"></div>
   <div id="vignette-overlay"></div>
-  <div id="letterbox-top" class="letterbox-bar"></div>
-  <div id="letterbox-bottom" class="letterbox-bar"></div>
   <div id="toast" class="hidden"></div>
 
-  <!-- Splash & Interactive Mode Selection Screen -->
+  <!-- Splash Screen -->
   <section id="splash-screen">
     <div class="splash-header">
-      <div class="splash-badge">
-        <span>✦</span>
-        <span>Lucid WebXR Dream Portal</span>
+      <div class="splash-title-box">
+        <h1 id="splash-title" class="splash-title">Dream Gate</h1>
+        <canvas id="splash-canvas"></canvas>
       </div>
-      <canvas id="splash-canvas"></canvas>
-      <p class="splash-subtitle">Summon a surreal gate into your room, cross into dreamscapes of floating sky-whales and celestial flora, and collect lost dream fragments.</p>
+      <p class="splash-subtitle">Open a gate in your room and step into a dream.</p>
     </div>
 
     <div class="splash-actions">
-      <button id="btn-enter-ar" class="btn-primary" aria-label="Enter Immersive AR">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M3 4c0-1.1.9-2 2-2h4v2H5v4H3V4zm0 16c0 1.1.9 2 2 2h4v-2H5v-4H3v4zm16 2c1.1 0 2-.9 2-2v-4h-2v4h-4v2h4zm2-18c0-1.1-.9-2-2-2h-4v2h4v4h2V4zM7 8h10v8H7V8z"/>
-        </svg>
-        Enter AR Dream
+      <button id="btn-enter-ar" class="btn-primary" aria-label="Enter AR">
+        Enter AR
       </button>
 
-      <button id="btn-camera-mode" class="btn-primary hidden" aria-label="Open Camera Mode">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
-          <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
-        </svg>
-        Open Camera Mode
+      <button id="btn-camera-mode" class="btn-primary hidden" aria-label="Open camera mode">
+        Open camera mode
       </button>
 
-      <button id="btn-preview" class="btn-secondary" aria-label="Enter 3D Desktop Preview">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
-        </svg>
-        Desktop 3D Preview
+      <button id="btn-preview" class="btn-outline" aria-label="Preview on screen">
+        Preview on screen
       </button>
 
-      <button id="btn-install-app" class="btn-secondary hidden" aria-label="Install as Progressive Web App">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-        </svg>
-        Install App
+      <button id="btn-install-app" class="btn-outline hidden" aria-label="Install app">
+        Install app
       </button>
 
-      <p class="splash-footer-note">WebXR ARCore on Android Chrome or Camera Gyro on iOS Safari</p>
+      <p id="splash-support-hint" class="splash-support-hint hidden">WebXR requires Chrome on ARCore-supported Android devices.</p>
     </div>
   </section>
 
@@ -80,88 +64,107 @@
     <header class="hud-top-bar" id="hud-top">
       <div class="hud-left">
         <div id="status-badge" class="status-badge">
-          <div id="status-dot" class="status-dot"></div>
-          <span id="status-text">Scanning...</span>
+          <span id="status-dot"></span>
+          <span id="status-text">Scanning</span>
         </div>
 
-        <!-- Dream Fragment Progress -->
-        <div id="fragment-pill" class="fragment-pill" title="Collected Dream Fragments">
-          <svg class="fragment-ring-svg" viewBox="0 0 20 20">
-            <circle class="fragment-ring-bg" cx="10" cy="10" r="7" />
-            <circle id="fragment-ring-fill" class="fragment-ring-fill" cx="10" cy="10" r="7" />
-          </svg>
-          <span id="fragment-count-text">0/7</span>
+        <!-- Fragments Counter -->
+        <div id="fragment-pill" class="fragment-counter" title="Collected fragments">
+          <span id="fragment-count-text">0 of 7</span>
+          <div id="fragment-ticks" class="fragment-ticks" aria-hidden="true">
+            <span class="tick"></span>
+            <span class="tick"></span>
+            <span class="tick"></span>
+            <span class="tick"></span>
+            <span class="tick"></span>
+            <span class="tick"></span>
+            <span class="tick"></span>
+          </div>
         </div>
 
-        <div id="fps-counter" class="fps-counter">60 FPS</div>
+        <!-- FPS Counter (?debug=1 only) -->
+        <div id="fps-counter" class="fps-counter hidden">60 FPS</div>
       </div>
 
       <div class="hud-actions">
         <!-- Sound Toggle -->
-        <button id="btn-sound-toggle" class="icon-btn" aria-label="Toggle Spatial Audio" title="Audio">
-          <svg id="icon-sound-on" viewBox="0 0 24 24">
-            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        <button id="btn-sound-toggle" class="icon-btn" aria-label="Toggle sound" title="Sound">
+          <svg id="icon-sound-on" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
           </svg>
-          <svg id="icon-sound-off" class="hidden" viewBox="0 0 24 24">
-            <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-          </svg>
-        </button>
-
-        <!-- Dream Journal Drawer -->
-        <button id="btn-journal" class="icon-btn" aria-label="Open Dream Journal" title="Journal">
-          <svg viewBox="0 0 24 24">
-            <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/>
+          <svg id="icon-sound-off" class="hidden" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
           </svg>
         </button>
 
-        <!-- Screenshot Capture -->
-        <button id="btn-screenshot" class="icon-btn" aria-label="Capture Dream Photo" title="Screenshot">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
-            <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+        <!-- Dream Journal -->
+        <button id="btn-journal" class="icon-btn" aria-label="Open journal" title="Journal">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
         </button>
 
-        <!-- Effects Drawer Toggle -->
-        <button id="btn-effects-panel" class="icon-btn" aria-label="Visual Effects Panel" title="VFX">
-          <svg viewBox="0 0 24 24">
-            <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
+        <!-- Settings Drawer Toggle -->
+        <button id="btn-effects-panel" class="icon-btn" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"></line>
+            <line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line>
+            <line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line>
+            <line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
           </svg>
         </button>
 
         <!-- Exit Button -->
-        <button id="btn-exit-ar" class="icon-btn" aria-label="Exit Experience" title="Exit">
-          <svg viewBox="0 0 24 24">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        <button id="btn-exit-ar" class="icon-btn" aria-label="Exit" title="Exit">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
     </header>
 
-    <!-- Center Guidance & Realm Sigils -->
+    <!-- Center Guidance & Realm Selector -->
     <div class="hud-center">
-      <div id="coach-pill" class="coach-pill">Move phone slowly to scan floor or wall</div>
+      <div id="coach-pill" class="coach-pill">Move your phone slowly to find the floor.</div>
 
-      <!-- Quick Realm Sigils Switcher -->
+      <!-- Quick Realm Selector -->
       <div id="realm-sigils-bar" class="realm-sigils-bar hidden">
-        <button class="sigil-btn active" data-realm="skyGarden">🌿 Sky Garden</button>
-        <button class="sigil-btn" data-realm="midnightOcean">🌊 Midnight Ocean</button>
-        <button class="sigil-btn" data-realm="starLibrary">✨ Star Library</button>
+        <button class="sigil-btn active" data-realm="skyGarden">Sky Garden</button>
+        <button class="sigil-btn" data-realm="midnightOcean">Midnight Ocean</button>
+        <button class="sigil-btn" data-realm="starLibrary">Star Library</button>
       </div>
     </div>
 
-    <!-- Bottom Controls Bar -->
+    <!-- Bottom Controls Bar & Actions Dock -->
     <footer class="hud-bottom-bar" id="hud-bottom">
       <div id="scale-slider-container" class="scale-slider-box hidden">
-        <span>Gate Size</span>
-        <input id="gate-scale-slider" type="range" min="0.5" max="2.2" step="0.05" value="1.0" aria-label="Gate Scale" />
+        <span>Gate size</span>
+        <input id="gate-scale-slider" type="range" min="0.5" max="2.2" step="0.05" value="1.0" aria-label="Gate size" />
       </div>
 
-      <div class="bottom-actions">
-        <button id="btn-place-fallback" class="btn-pill accent hidden">✦ Place Gate</button>
-        <button id="btn-step-fallback" class="btn-pill accent hidden">⚡ Step Through</button>
-        <button id="btn-wake-up" class="btn-pill wake hidden">🌅 Wake Up</button>
-        <button id="btn-reset-gate" class="btn-pill hidden">↺ Re-place Gate</button>
+      <div class="bottom-dock">
+        <button id="btn-reset-gate" class="btn-dock hidden">Re-place gate</button>
+        <button id="btn-screenshot" class="btn-dock" aria-label="Take photo">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          <span>Photo</span>
+        </button>
+        <button id="btn-wake-up" class="btn-dock btn-dock-accent hidden">Wake up</button>
+        <button id="btn-place-fallback" class="btn-dock btn-dock-accent hidden">Place gate</button>
+        <button id="btn-step-fallback" class="btn-dock hidden">Step through</button>
       </div>
     </footer>
   </main>
@@ -169,23 +172,22 @@
   <!-- Wake-Up Summary Card Modal -->
   <aside id="wake-modal" class="hidden">
     <div class="summary-card">
-      <div class="summary-icon">🌌</div>
-      <h2 id="wake-title" class="summary-title">Awakened from Dream</h2>
-      <div id="wake-poetic-title" class="summary-poetic-title">"Whispers of the Sky-Whale"</div>
+      <h2 id="wake-title" class="summary-title">Awakened from dream</h2>
+      <div id="wake-poetic-title" class="summary-poetic-title">"Whispers of the Threshold"</div>
       
       <div class="summary-stats">
         <div class="stat-item">
-          <span id="wake-fragments" class="stat-value">7 / 7</span>
+          <span id="wake-fragments" class="stat-value">7 of 7</span>
           <span class="stat-label">Fragments</span>
         </div>
         <div class="stat-item">
           <span id="wake-time" class="stat-value">124s</span>
-          <span class="stat-label">Dream Time</span>
+          <span class="stat-label">Dream time</span>
         </div>
       </div>
 
-      <p style="font-size:13px;color:rgba(223,233,255,0.7);line-height:1.5;">This reverie has been preserved in your personal Dream Journal.</p>
-      <button id="btn-close-wake-summary" class="btn-primary" style="width:auto;padding:12px 32px;">Continue Dreaming</button>
+      <p class="summary-note">This reverie has been preserved in your dream journal.</p>
+      <button id="btn-close-wake-summary" class="btn-primary" style="width:100%;padding:12px 24px;">Continue dreaming</button>
     </div>
   </aside>
 
@@ -194,67 +196,73 @@
     <div class="journal-sheet">
       <div class="sheet-handle"></div>
       <div class="sheet-header">
-        <h2 class="sheet-title">📖 Dream Journal</h2>
-        <button id="btn-close-journal" class="icon-btn" aria-label="Close Journal">
-          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        <h2 class="sheet-title">Dream journal</h2>
+        <button id="btn-close-journal" class="icon-btn" aria-label="Close journal">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
         </button>
       </div>
       <div id="journal-list"></div>
     </div>
   </aside>
 
-  <!-- Slide-Up VFX Controls Drawer / Modal -->
+  <!-- Slide-Up Settings & VFX Drawer -->
   <aside id="effects-modal" class="hidden">
     <div class="effects-sheet">
       <div class="sheet-handle"></div>
       
       <div class="sheet-header">
-        <h2 class="sheet-title">Dream VFX & Quality</h2>
-        <button id="btn-close-effects" class="icon-btn" aria-label="Close Effects Panel">
-          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        <h2 class="sheet-title">Settings & quality</h2>
+        <button id="btn-close-effects" class="icon-btn" aria-label="Close settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
         </button>
       </div>
 
-      <button id="btn-cinematic-mode" class="btn-primary">✨ Cinematic Lucid Mode (All On • Ultra)</button>
+      <button id="btn-cinematic-mode" class="btn-outline" style="width:100%;margin-bottom:16px;">Cinematic high quality</button>
 
       <!-- Quality Selector -->
       <div class="effects-group">
-        <span class="effects-group-title">Performance & Quality</span>
+        <span class="effects-group-title">Performance</span>
         <div class="control-row">
-          <span class="control-label">Quality Profile</span>
-          <select id="quality-select" class="select-input" aria-label="Quality Profile">
-            <option value="high">High (60 FPS mid-range target)</option>
-            <option value="medium">Medium (LOD optimized)</option>
-            <option value="low">Low (Maximum battery saver)</option>
+          <span class="control-label">Quality profile</span>
+          <select id="quality-select" class="select-input" aria-label="Quality profile">
+            <option value="high">High (full resolution)</option>
+            <option value="medium">Medium (balanced)</option>
+            <option value="low">Low (power saver)</option>
           </select>
         </div>
       </div>
 
       <!-- Atmosphere Sliders -->
       <div class="effects-group">
-        <span class="effects-group-title">Atmosphere Controls</span>
+        <span class="effects-group-title">Atmosphere</span>
         
         <div class="slider-control">
           <div class="slider-control-header">
-            <span>Master Dream Intensity</span>
+            <span>Gate brightness</span>
           </div>
-          <input id="intensity-slider" type="range" min="0.2" max="2.0" step="0.05" value="1.0" aria-label="Master Intensity" />
+          <input id="intensity-slider" type="range" min="0.2" max="2.0" step="0.05" value="1.0" aria-label="Gate brightness" />
         </div>
 
         <div class="slider-control">
           <div class="slider-control-header">
-            <span>Time of Night (Dusk ↔ Midnight)</span>
+            <span>Time of night</span>
           </div>
-          <input id="night-slider" type="range" min="0.0" max="1.0" step="0.02" value="0.5" aria-label="Time of Night" />
+          <input id="night-slider" type="range" min="0.0" max="1.0" step="0.02" value="0.5" aria-label="Time of night" />
         </div>
       </div>
 
       <!-- Subsystem Group Toggles -->
       <div class="effects-group">
-        <span class="effects-group-title">VFX Subsystem Modules</span>
+        <span class="effects-group-title">Visual elements</span>
 
         <div class="control-row">
-          <span class="control-label">Gate Arch & Dream Mist</span>
+          <span class="control-label">Gate frame & mist</span>
           <label class="switch">
             <input type="checkbox" id="toggle-gate" checked />
             <span class="slider-toggle"></span>
@@ -262,7 +270,7 @@
         </div>
 
         <div class="control-row">
-          <span class="control-label">Particle Systems (Spores, Fireflies, Dust)</span>
+          <span class="control-label">Particles (spores, fireflies)</span>
           <label class="switch">
             <input type="checkbox" id="toggle-particles" checked />
             <span class="slider-toggle"></span>
@@ -270,7 +278,7 @@
         </div>
 
         <div class="control-row">
-          <span class="control-label">Light & Atmosphere (God Rays, Fog, Decal)</span>
+          <span class="control-label">Atmosphere lighting</span>
           <label class="switch">
             <input type="checkbox" id="toggle-lighting" checked />
             <span class="slider-toggle"></span>
@@ -278,7 +286,7 @@
         </div>
 
         <div class="control-row">
-          <span class="control-label">Active Dream Realm (Islands, Whales, Water)</span>
+          <span class="control-label">Active realm</span>
           <label class="switch">
             <input type="checkbox" id="toggle-realm" checked />
             <span class="slider-toggle"></span>
@@ -286,7 +294,7 @@
         </div>
 
         <div class="control-row">
-          <span class="control-label">Audio-Reactive Dynamics</span>
+          <span class="control-label">Audio reactivity</span>
           <label class="switch">
             <input type="checkbox" id="toggle-reactive" checked />
             <span class="slider-toggle"></span>
