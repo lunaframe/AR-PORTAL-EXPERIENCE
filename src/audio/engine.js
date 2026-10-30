@@ -12,6 +12,8 @@
  * - Clean pause/resume on visibilitychange and teardown
  */
 
+import * as THREE from 'three';
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -25,6 +27,8 @@ export class AudioEngine {
     this.isMuted = false;
     this.volume = 0.8;
     this.isInitialized = false;
+
+    this.listenerForward = new THREE.Vector3();
 
     // Guard flags to prevent duplicate graph construction
     this.hasAmbientGraph = false;
@@ -605,7 +609,7 @@ export class AudioEngine {
       l.setPosition(p.x, p.y, p.z);
     }
 
-    const forward = camera.getWorldDirection(new Float32Array(3));
+    const forward = camera.getWorldDirection(this.listenerForward);
     const up = camera.up;
     if (l.forwardX) {
       l.forwardX.setTargetAtTime(forward.x, t, tc);

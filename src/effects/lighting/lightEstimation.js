@@ -34,8 +34,9 @@ export class LightEstimationEffect {
 
   setTheme(theme) {
     if (!theme) return;
+    const col = theme.violet || theme.primary || { r: 0.48, g: 0.30, b: 1.0 };
     if (this.ambientLight) {
-      this.ambientLight.color.setRGB(theme.primary.r * 2.5, theme.primary.g * 2.5, theme.primary.b * 2.5);
+      this.ambientLight.color.setRGB(col.r * 1.5, col.g * 1.5, col.b * 1.5);
     }
   }
 

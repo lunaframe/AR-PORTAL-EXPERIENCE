@@ -55,7 +55,7 @@ export class DreamFragmentsSystem {
         emissiveIntensity: 0.8,
         roughness: 0.2,
         metalness: 0.8,
-        stencilWrite: true,
+        stencilWrite: false,
         stencilRef: 1,
         stencilFunc: THREE.EqualStencilFunc,
       });
@@ -71,7 +71,7 @@ export class DreamFragmentsSystem {
         transparent: true,
         opacity: 0.8,
         depthWrite: false,
-        stencilWrite: true,
+        stencilWrite: false,
         stencilRef: 1,
         stencilFunc: THREE.EqualStencilFunc,
       });
@@ -90,7 +90,7 @@ export class DreamFragmentsSystem {
           transparent: true,
           opacity: 0.9,
           depthWrite: false,
-          stencilWrite: true,
+          stencilWrite: false,
           stencilRef: 1,
           stencilFunc: THREE.EqualStencilFunc,
         });

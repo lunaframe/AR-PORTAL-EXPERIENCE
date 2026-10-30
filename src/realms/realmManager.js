@@ -122,13 +122,13 @@ export class RealmManager {
     for (const r of Object.values(this.realms)) {
       if (r && r.group) {
         r.group.traverse((obj) => {
-          if (obj.isMesh) obj.renderOrder = order;
+          if (obj.material) obj.renderOrder = order;
         });
       }
     }
     if (this.fragments && this.fragments.group) {
       this.fragments.group.traverse((obj) => {
-        if (obj.isMesh) obj.renderOrder = order;
+        if (obj.material) obj.renderOrder = order;
       });
     }
   }

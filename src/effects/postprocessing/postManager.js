@@ -69,15 +69,22 @@ export class PostProcessingManager {
 
   init() {
     const size = this.renderer.getSize(new THREE.Vector2());
+    const width = size.x || window.innerWidth || 1280;
+    const height = size.y || window.innerHeight || 720;
 
-    // Initialize composer
-    this.composer = new EffectComposer(this.renderer);
+    // Initialize composer with stencil buffer enabled on render targets
+    const renderTarget = new THREE.WebGLRenderTarget(width, height, {
+      type: THREE.HalfFloatType,
+      stencilBuffer: true,
+      depthBuffer: true,
+    });
+    this.composer = new EffectComposer(this.renderer, renderTarget);
 
     const renderPass = new RenderPass(this.scene, this.camera);
     this.composer.addPass(renderPass);
 
     // Unreal Bloom
-    this.bloomPass = new UnrealBloomPass(size, 0.45, 0.4, 0.85);
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(width, height), 0.45, 0.4, 0.85);
     this.composer.addPass(this.bloomPass);
 
     // Chromatic Aberration & Film Grain Pass

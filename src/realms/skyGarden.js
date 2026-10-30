@@ -74,7 +74,7 @@ export class SkyGardenRealm {
       },
       side: THREE.BackSide,
       depthWrite: false,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -86,7 +86,7 @@ export class SkyGardenRealm {
     const moonMat = new THREE.MeshBasicMaterial({
       color: 0xdfe9ff, // Moon silver
       side: THREE.DoubleSide,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -103,7 +103,7 @@ export class SkyGardenRealm {
       blending: THREE.AdditiveBlending,
       transparent: true,
       opacity: 0.55,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
       depthWrite: false,
@@ -128,7 +128,7 @@ export class SkyGardenRealm {
       color: 0x141038,
       roughness: 0.85,
       metalness: 0.1,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -138,7 +138,7 @@ export class SkyGardenRealm {
       emissive: 0x3df2d0,
       emissiveIntensity: 0.15,
       roughness: 0.7,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -179,7 +179,7 @@ export class SkyGardenRealm {
         stemGeom.translate(0, 0.125, 0);
         const stemMat = new THREE.MeshBasicMaterial({
           color: 0x3df2d0,
-          stencilWrite: true,
+          stencilWrite: false,
           stencilRef: 1,
           stencilFunc: this.stencilFunc,
         });
@@ -194,7 +194,7 @@ export class SkyGardenRealm {
           color: 0xff9ecb, // Rose gold
           emissive: 0xff9ecb,
           emissiveIntensity: 0.6,
-          stencilWrite: true,
+          stencilWrite: false,
           stencilRef: 1,
           stencilFunc: this.stencilFunc,
         });
@@ -232,7 +232,7 @@ export class SkyGardenRealm {
       emissiveIntensity: 0.45,
       roughness: 0.35,
       metalness: 0.2,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -286,7 +286,7 @@ export class SkyGardenRealm {
       opacity: 0.35,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });

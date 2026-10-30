@@ -72,7 +72,7 @@ export class StarLibraryRealm {
       uniforms: { uTime: { value: 0 } },
       side: THREE.BackSide,
       depthWrite: false,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -99,7 +99,7 @@ export class StarLibraryRealm {
       emissive: 0x241858,
       roughness: 0.4,
       metalness: 0.6,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -107,7 +107,7 @@ export class StarLibraryRealm {
     const pageMat = new THREE.MeshBasicMaterial({
       color: 0xfff6dc, // Warm parchment
       side: THREE.DoubleSide,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -151,7 +151,7 @@ export class StarLibraryRealm {
       color: 0x3df2d0,
       emissive: 0x145a50,
       roughness: 0.6,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -162,7 +162,7 @@ export class StarLibraryRealm {
       transparent: true,
       opacity: 0.65,
       blending: THREE.AdditiveBlending,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -193,7 +193,7 @@ export class StarLibraryRealm {
       color: 0xffd27a, // Warm lantern #ffd27a
       transparent: true,
       opacity: 0.85,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -205,7 +205,7 @@ export class StarLibraryRealm {
       transparent: true,
       opacity: 0.7,
       depthWrite: false,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -250,7 +250,7 @@ export class StarLibraryRealm {
       transparent: true,
       opacity: 0.7,
       blending: THREE.AdditiveBlending,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });

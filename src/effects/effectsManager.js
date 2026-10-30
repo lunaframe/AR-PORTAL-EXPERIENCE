@@ -33,6 +33,7 @@ export class EffectsManager {
     this.masterIntensity = 1.0;
     this.currentQuality = 'high';
     this.currentTheme = 'dream';
+    this.disabledEffects = new Set();
 
     // Dream Gate Palette (RGB vectors)
     this.themes = {
@@ -44,6 +45,13 @@ export class EffectsManager {
         teal: { r: 61 / 255, g: 242 / 255, b: 208 / 255 },    // #3df2d0
         rose: { r: 255 / 255, g: 158 / 255, b: 203 / 255 },   // #ff9ecb
         lantern: { r: 255 / 255, g: 210 / 255, b: 122 / 255 },// #ffd27a
+
+        // Standard VFX aliases
+        primary: { r: 124 / 255, g: 77 / 255, b: 255 / 255 },
+        secondary: { r: 11 / 255, g: 10 / 255, b: 42 / 255 },
+        accent1: { r: 61 / 255, g: 242 / 255, b: 208 / 255 },
+        accent2: { r: 255 / 255, g: 158 / 255, b: 203 / 255 },
+        highlight: { r: 255 / 255, g: 210 / 255, b: 122 / 255 },
       },
     };
   }
@@ -65,15 +73,28 @@ export class EffectsManager {
     }
     this.groups[group].add(id);
 
-    // Initialize with current parameters
+    // Initialize with current parameters safely
     if (typeof effect.init === 'function') {
-      effect.init(this.scene, this.camera, this.renderer);
+      try {
+        effect.init(this.scene, this.camera, this.renderer);
+      } catch (err) {
+        console.error(`[EffectsManager] Error initializing effect '${id}':`, err);
+        this.disabledEffects.add(id);
+      }
     }
     if (typeof effect.setQuality === 'function') {
-      effect.setQuality(this.currentQuality);
+      try {
+        effect.setQuality(this.currentQuality);
+      } catch (err) {
+        console.error(`[EffectsManager] Error setQuality on effect '${id}':`, err);
+      }
     }
     if (typeof effect.setTheme === 'function') {
-      effect.setTheme(this.themes[this.currentTheme]);
+      try {
+        effect.setTheme(this.themes[this.currentTheme]);
+      } catch (err) {
+        console.error(`[EffectsManager] Error setTheme on effect '${id}':`, err);
+      }
     }
   }
 
@@ -140,6 +161,8 @@ export class EffectsManager {
     };
 
     for (const [id, eff] of this.effects.entries()) {
+      if (this.disabledEffects.has(id)) continue;
+
       // Find group
       let groupName = 'core';
       for (const [grp, ids] of Object.entries(this.groups)) {
@@ -154,6 +177,7 @@ export class EffectsManager {
           eff.update(dt, time, fullState);
         } catch (e) {
           console.error(`[EffectsManager] Error updating effect '${id}':`, e);
+          this.disabledEffects.add(id);
         }
       }
     }

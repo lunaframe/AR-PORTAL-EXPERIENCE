@@ -33,7 +33,8 @@ export class PortalPointLightEffect {
 
   setTheme(theme) {
     if (!this.light || !theme) return;
-    this.light.color.setRGB(theme.accent1.r, theme.accent1.g, theme.accent1.b);
+    const col = theme.teal || theme.accent1 || { r: 0.24, g: 0.95, b: 0.82 };
+    this.light.color.setRGB(col.r, col.g, col.b);
   }
 
   update(dt, time, state) {

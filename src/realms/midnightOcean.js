@@ -81,7 +81,7 @@ export class MidnightOceanRealm {
       uniforms: { uTime: { value: 0 } },
       side: THREE.BackSide,
       depthWrite: false,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -153,7 +153,7 @@ export class MidnightOceanRealm {
         uAudioBass: { value: 0 },
         uRipples: { value: this.ripples },
       },
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -183,7 +183,7 @@ export class MidnightOceanRealm {
       opacity: 0.75,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
       depthWrite: false,
@@ -194,7 +194,7 @@ export class MidnightOceanRealm {
       transparent: true,
       opacity: 0.6,
       blending: THREE.AdditiveBlending,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -240,7 +240,7 @@ export class MidnightOceanRealm {
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
       depthWrite: false,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });
@@ -289,7 +289,7 @@ export class MidnightOceanRealm {
       opacity: 0.65,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      stencilWrite: true,
+      stencilWrite: false,
       stencilRef: 1,
       stencilFunc: this.stencilFunc,
     });

@@ -154,7 +154,7 @@ class DreamGateApp {
     this.scene = new THREE.Scene();
     this.scene.background = null;
 
-    this.camera = new THREE.PerspectiveCamera(this.baseFov, window.innerWidth / window.innerHeight, 0.05, 120);
+    this.camera = new THREE.PerspectiveCamera(this.baseFov, window.innerWidth / window.innerHeight, 0.01, 200);
     this.camera.position.set(0, 1.4, 1.8);
 
     this.renderer = new THREE.WebGLRenderer({
@@ -165,6 +165,7 @@ class DreamGateApp {
       preserveDrawingBuffer: true,
       stencil: true, // Aperture mask
     });
+    this.renderer.debug.checkShaderErrors = true;
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -187,6 +188,14 @@ class DreamGateApp {
     this.gate = new DreamGate(this.scene, this.camera, this.renderer, this.effects);
     this.reticle = new MoonReticle(this.scene);
     this.realms = new RealmManager(this.scene, this.camera, this.renderer, this.effects);
+
+    // Lighting for scene and gate structures
+    this.ambientLight = new THREE.AmbientLight(0x403670, 1.2);
+    this.scene.add(this.ambientLight);
+
+    this.dirLight = new THREE.DirectionalLight(0xe8f7ff, 0.9);
+    this.dirLight.position.set(2, 4, 3);
+    this.scene.add(this.dirLight);
 
     // Visual sequence callbacks
     this.gate.sequence.onFlashTrigger = () => this.ui.showScreenFlash();
@@ -238,6 +247,19 @@ class DreamGateApp {
 
     // 12. Resize Handling (guarded so it does not resize XR session)
     window.addEventListener('resize', () => this.onResize());
+
+    // 13. URL parameters for debugging & bisecting: ?effects=none, ?realm=skyGarden
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('effects') === 'none') {
+      for (const grp of ['gate', 'particles', 'lighting', 'realm', 'reactive']) {
+        this.effects.setGroupEnabled(grp, false);
+      }
+    }
+    const targetRealm = urlParams.get('realm');
+    if (targetRealm && this.realms.realms[targetRealm]) {
+      this.gate.setRealm(targetRealm);
+      this.realms.setRealm(targetRealm);
+    }
   }
 
   initAudioGestureUnlock() {
@@ -687,6 +709,7 @@ class DreamGateApp {
 // Start application on DOM Ready
 window.addEventListener('DOMContentLoaded', () => {
   const app = new DreamGateApp();
+  window.app = app;
   app.init().catch((err) => {
     console.error('Fatal initialization error:', err);
   });
